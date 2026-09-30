@@ -1,0 +1,115 @@
+<div id="fit-check-dashboard" class="viz-dotted-background">
+  <style>
+    #fit-check-dashboard {
+      --fit-ink: light-dark(#19171d, #f4f1f7);
+      --fit-muted: light-dark(#756e7d, #aca4b7);
+      --fit-surface: light-dark(#fbfafc, #211e26);
+      --fit-panel: light-dark(#ffffff, #2a2630);
+      --fit-line: light-dark(#e7e2eb, #423b49);
+      --fit-purple: light-dark(#7651e8, #b39aff);
+      --fit-purple-soft: light-dark(#f0ebff, #3a2f54);
+      --fit-peach: light-dark(#f8c5a5, #965d43);
+      --fit-lilac: light-dark(#d5c7ff, #63548d);
+      --fit-sage: light-dark(#cbd9ca, #52634f);
+      color: var(--fit-ink);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      padding: 24px 12px 34px;
+    }
+
+    #fit-check-dashboard .fit-phone {
+      background: var(--fit-surface);
+      border: 8px solid light-dark(#201d25, #0e0c11);
+      border-radius: 34px;
+      box-shadow: 0 22px 60px color-mix(in srgb, var(--fit-ink) 20%, transparent);
+      margin: 0 auto;
+      max-width: 360px;
+      min-height: 720px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #fit-check-dashboard .fit-phone-inner { padding: 18px 18px 84px; }
+    #fit-check-dashboard .fit-status { align-items: center; display: flex; font-size: 11px; font-weight: 600; justify-content: space-between; letter-spacing: .02em; }
+    #fit-check-dashboard .fit-status-icons { align-items: center; display: flex; gap: 6px; }
+    #fit-check-dashboard .fit-header { align-items: center; display: flex; justify-content: space-between; margin-top: 24px; }
+    #fit-check-dashboard .fit-eyebrow { color: var(--fit-muted); font-size: 12px; margin: 0 0 4px; }
+    #fit-check-dashboard h1 { font-size: 25px; letter-spacing: -.04em; line-height: 1.05; margin: 0; }
+    #fit-check-dashboard .fit-avatar { align-items: center; background: var(--fit-peach); border: 0; border-radius: 50%; color: #4a2a20; display: flex; font-size: 13px; font-weight: 700; height: 38px; justify-content: center; width: 38px; }
+    #fit-check-dashboard .fit-context { align-items: center; color: var(--fit-muted); display: flex; font-size: 12px; gap: 5px; margin-top: 8px; }
+    #fit-check-dashboard .fit-hero { background: linear-gradient(135deg, var(--fit-purple-soft), color-mix(in srgb, var(--fit-peach) 38%, var(--fit-surface))); border-radius: 22px; margin-top: 22px; overflow: hidden; padding: 18px; position: relative; }
+    #fit-check-dashboard .fit-hero-copy { max-width: 64%; position: relative; z-index: 1; }
+    #fit-check-dashboard .fit-hero-label { color: var(--fit-purple); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    #fit-check-dashboard .fit-hero h2 { font-size: 20px; letter-spacing: -.03em; line-height: 1.1; margin: 8px 0 7px; }
+    #fit-check-dashboard .fit-hero p { color: var(--fit-muted); font-size: 12px; line-height: 1.35; margin: 0 0 15px; }
+    #fit-check-dashboard .fit-primary { align-items: center; background: var(--fit-purple); border: 0; border-radius: 10px; color: #fff; display: inline-flex; font-size: 12px; font-weight: 700; gap: 7px; padding: 10px 12px; }
+    #fit-check-dashboard .fit-hero-art { bottom: -20px; height: 128px; position: absolute; right: 2px; transform: rotate(7deg); width: 116px; }
+    #fit-check-dashboard .fit-hero-art::before { background: var(--fit-peach); border-radius: 55% 45% 15% 15%; content: ''; height: 78px; left: 18px; position: absolute; top: 31px; transform: rotate(-9deg); width: 72px; }
+    #fit-check-dashboard .fit-hero-art::after { background: var(--fit-ink); border-radius: 45% 45% 8px 8px; content: ''; height: 55px; left: 28px; position: absolute; top: 3px; transform: rotate(5deg); width: 58px; }
+    #fit-check-dashboard .fit-section-head { align-items: baseline; display: flex; justify-content: space-between; margin: 23px 1px 11px; }
+    #fit-check-dashboard .fit-section-head h2 { font-size: 16px; letter-spacing: -.02em; margin: 0; }
+    #fit-check-dashboard .fit-section-head a { color: var(--fit-purple); font-size: 11px; font-weight: 700; text-decoration: none; }
+    #fit-check-dashboard .fit-suggestion { background: var(--fit-panel); border: 1px solid var(--fit-line); border-radius: 17px; display: flex; gap: 11px; padding: 11px; }
+    #fit-check-dashboard .fit-outfit { display: flex; gap: 7px; }
+    #fit-check-dashboard .fit-item { align-items: center; border-radius: 11px; display: flex; height: 77px; justify-content: center; overflow: hidden; position: relative; width: 62px; }
+    #fit-check-dashboard .fit-item span { bottom: 5px; color: #fff; font-size: 9px; font-weight: 700; left: 0; position: absolute; right: 0; text-align: center; text-shadow: 0 1px 3px #0008; }
+    #fit-check-dashboard .fit-top { background: var(--fit-lilac); }
+    #fit-check-dashboard .fit-top::before { background: #42385e; border-radius: 20px 20px 8px 8px; content: ''; height: 51px; width: 42px; }
+    #fit-check-dashboard .fit-bottom { background: var(--fit-sage); }
+    #fit-check-dashboard .fit-bottom::before { background: #e5ded1; border-radius: 8px; content: ''; height: 57px; transform: skew(-9deg); width: 31px; }
+    #fit-check-dashboard .fit-shoes { background: var(--fit-peach); }
+    #fit-check-dashboard .fit-shoes::before { background: #f8f5f0; border-radius: 22px 9px 8px 8px; content: ''; height: 20px; transform: rotate(-7deg); width: 42px; }
+    #fit-check-dashboard .fit-suggestion-copy { display: flex; flex: 1; flex-direction: column; justify-content: center; }
+    #fit-check-dashboard .fit-suggestion-copy strong { font-size: 13px; }
+    #fit-check-dashboard .fit-suggestion-copy p { color: var(--fit-muted); font-size: 11px; line-height: 1.35; margin: 5px 0 9px; }
+    #fit-check-dashboard .fit-chip { align-self: flex-start; background: var(--fit-purple-soft); border-radius: 99px; color: var(--fit-purple); font-size: 10px; font-weight: 750; padding: 5px 8px; }
+    #fit-check-dashboard .fit-community { display: flex; gap: 9px; overflow: hidden; }
+    #fit-check-dashboard .fit-post { background: var(--fit-panel); border: 1px solid var(--fit-line); border-radius: 15px; min-width: 136px; overflow: hidden; }
+    #fit-check-dashboard .fit-post-photo { align-items: flex-end; display: flex; height: 86px; padding: 8px; }
+    #fit-check-dashboard .fit-post-photo.one { background: linear-gradient(145deg, #d8c8ff, #967bbd); }
+    #fit-check-dashboard .fit-post-photo.two { background: linear-gradient(145deg, #f4c5aa, #d88d73); }
+    #fit-check-dashboard .fit-post-photo::before { background: color-mix(in srgb, var(--fit-ink) 75%, transparent); border-radius: 22px 22px 5px 5px; content: ''; height: 59px; margin: 0 auto; width: 40px; }
+    #fit-check-dashboard .fit-post-info { padding: 8px 9px 10px; }
+    #fit-check-dashboard .fit-post-info strong { display: block; font-size: 11px; }
+    #fit-check-dashboard .fit-post-info span { color: var(--fit-muted); font-size: 10px; }
+    #fit-check-dashboard .fit-bottom-nav { background: color-mix(in srgb, var(--fit-surface) 94%, transparent); border-top: 1px solid var(--fit-line); bottom: 0; display: flex; justify-content: space-around; left: 0; padding: 13px 12px 17px; position: absolute; right: 0; }
+    #fit-check-dashboard .fit-nav-button { align-items: center; background: transparent; border: 0; color: var(--fit-muted); display: flex; flex-direction: column; font-size: 10px; gap: 4px; }
+    #fit-check-dashboard .fit-nav-button.active { color: var(--fit-purple); font-weight: 750; }
+    #fit-check-dashboard .fit-nav-button i { height: 17px; width: 17px; }
+    @media (max-width: 420px) { #fit-check-dashboard { padding-left: 0; padding-right: 0; } #fit-check-dashboard .fit-phone { border-width: 0; border-radius: 26px; } }
+  </style>
+
+  <div class="fit-phone" aria-label="Fit Check mobile home dashboard mockup">
+    <div class="fit-phone-inner">
+      <div class="fit-status"><span>9:41</span><span class="fit-status-icons"><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i><i data-lucide="battery-full" aria-hidden="true"></i></span></div>
+      <div class="fit-header">
+        <div><p class="fit-eyebrow">Monday, October 7</p><h1>Good morning, Maya</h1></div>
+        <button class="fit-avatar" aria-label="Open profile">M</button>
+      </div>
+      <div class="fit-context"><i data-lucide="map-pin" aria-hidden="true"></i><span>Campus today</span><span>•</span><span>68° and clear</span></div>
+
+      <section class="fit-hero" aria-label="AI outfit suggestion">
+        <div class="fit-hero-copy"><div class="fit-hero-label">Your daily fit check</div><h2>What’s the move today?</h2><p>Let AI build a look from pieces you already own.</p><button class="fit-primary" type="button">Get a fit suggestion <i data-lucide="sparkles" aria-hidden="true"></i></button></div>
+        <div class="fit-hero-art" aria-hidden="true"></div>
+      </section>
+
+      <div class="fit-section-head"><h2>Picked for you</h2><a href="#closet">View closet</a></div>
+      <section class="fit-suggestion" aria-label="Suggested outfit">
+        <div class="fit-outfit"><div class="fit-item fit-top"><span>TOP</span></div><div class="fit-item fit-bottom"><span>BOTTOM</span></div><div class="fit-item fit-shoes"><span>SHOES</span></div></div>
+        <div class="fit-suggestion-copy"><strong>Campus casual</strong><p>Easy layers for a long day of classes.</p><span class="fit-chip">92% match</span></div>
+      </section>
+
+      <div class="fit-section-head"><h2>See what’s trending</h2><a href="#community">Open feed</a></div>
+      <section class="fit-community" aria-label="Community fit posts">
+        <article class="fit-post"><div class="fit-post-photo one" aria-hidden="true"></div><div class="fit-post-info"><strong>Jordan’s fall layers</strong><span>♡ 148 likes</span></div></article>
+        <article class="fit-post"><div class="fit-post-photo two" aria-hidden="true"></div><div class="fit-post-info"><strong>Thrifted & clean</strong><span>♡ 96 likes</span></div></article>
+      </section>
+    </div>
+
+    <nav class="fit-bottom-nav" aria-label="Main navigation">
+      <button class="fit-nav-button active" type="button"><i data-lucide="house" aria-hidden="true"></i><span>Home</span></button>
+      <button class="fit-nav-button" type="button"><i data-lucide="shirt" aria-hidden="true"></i><span>Closet</span></button>
+      <button class="fit-nav-button" type="button"><i data-lucide="users" aria-hidden="true"></i><span>Community</span></button>
+      <button class="fit-nav-button" type="button"><i data-lucide="user-round" aria-hidden="true"></i><span>Profile</span></button>
+    </nav>
+  </div>
+</div>

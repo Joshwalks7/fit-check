@@ -1,0 +1,105 @@
+<div id="fit-check-community" class="viz-dotted-background">
+  <style>
+    #fit-check-community {
+      --fc-ink: light-dark(#19171d, #f4f1f7);
+      --fc-muted: light-dark(#756e7d, #aca4b7);
+      --fc-surface: light-dark(#fbfafc, #211e26);
+      --fc-panel: light-dark(#ffffff, #2a2630);
+      --fc-line: light-dark(#e7e2eb, #423b49);
+      --fc-purple: light-dark(#7651e8, #b39aff);
+      --fc-purple-soft: light-dark(#f0ebff, #3a2f54);
+      --fc-peach: light-dark(#f7c2a1, #9a6045);
+      color: var(--fc-ink);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      padding: 24px 12px 34px;
+    }
+
+    #fit-check-community .fc-phone { background: var(--fc-surface); border: 8px solid light-dark(#201d25, #0e0c11); border-radius: 34px; box-shadow: 0 22px 60px color-mix(in srgb, var(--fc-ink) 20%, transparent); margin: 0 auto; max-width: 360px; min-height: 760px; overflow: hidden; position: relative; }
+    #fit-check-community .fc-inner { padding: 18px 16px 86px; }
+    #fit-check-community .fc-status { align-items: center; display: flex; font-size: 11px; font-weight: 600; justify-content: space-between; }
+    #fit-check-community .fc-status-icons { align-items: center; display: flex; gap: 6px; }
+    #fit-check-community .fc-status-icons i { height: 13px; width: 13px; }
+    #fit-check-community .fc-header { align-items: center; display: flex; justify-content: space-between; margin-top: 24px; }
+    #fit-check-community h1 { font-size: 26px; letter-spacing: -.04em; line-height: 1; margin: 0; }
+    #fit-check-community .fc-subtitle { color: var(--fc-muted); font-size: 12px; margin: 7px 0 0; }
+    #fit-check-community .fc-upload { align-items: center; background: var(--fc-purple); border: 0; border-radius: 12px; color: #fff; font-size: 11px; font-weight: 750; padding: 10px 11px; }
+    #fit-check-community .fc-upload i { height: 15px; width: 15px; }
+    #fit-check-community .fc-tabs { border-bottom: 1px solid var(--fc-line); display: flex; gap: 22px; margin-top: 22px; }
+    #fit-check-community .fc-tab { background: transparent; border: 0; color: var(--fc-muted); font-size: 12px; font-weight: 650; padding: 0 0 11px; position: relative; }
+    #fit-check-community .fc-tab.active { color: var(--fc-ink); }
+    #fit-check-community .fc-tab.active::after { background: var(--fc-purple); border-radius: 4px 4px 0 0; bottom: -1px; content: ''; height: 3px; left: 0; position: absolute; right: 0; }
+    #fit-check-community .fc-filter-row { align-items: center; display: flex; justify-content: space-between; margin: 15px 0 12px; }
+    #fit-check-community .fc-filter-label { align-items: center; color: var(--fc-muted); display: flex; font-size: 11px; gap: 5px; }
+    #fit-check-community .fc-filter { align-items: center; background: var(--fc-panel); border: 1px solid var(--fc-line); border-radius: 8px; color: var(--fc-ink); display: flex; font-size: 10px; gap: 4px; padding: 7px 8px; }
+    #fit-check-community .fc-post { background: var(--fc-panel); border: 1px solid var(--fc-line); border-radius: 18px; margin-bottom: 13px; overflow: hidden; }
+    #fit-check-community .fc-post-head { align-items: center; display: flex; gap: 8px; padding: 11px 12px; }
+    #fit-check-community .fc-user-avatar { align-items: center; background: var(--fc-peach); border-radius: 50%; color: #4a2a20; display: flex; font-size: 10px; font-weight: 750; height: 28px; justify-content: center; width: 28px; }
+    #fit-check-community .fc-user-avatar.blue { background: #c8d5ee; color: #283a63; }
+    #fit-check-community .fc-user-avatar.green { background: #cbd9ca; color: #314c34; }
+    #fit-check-community .fc-user-info { flex: 1; }
+    #fit-check-community .fc-user-info strong { display: block; font-size: 11px; }
+    #fit-check-community .fc-user-info span { color: var(--fc-muted); font-size: 10px; }
+    #fit-check-community .fc-more { background: transparent; border: 0; color: var(--fc-muted); padding: 5px; }
+    #fit-check-community .fc-photo { align-items: flex-end; display: flex; height: 190px; justify-content: center; overflow: hidden; position: relative; }
+    #fit-check-community .fc-photo.one { background: linear-gradient(145deg, #ded3fb, #9d83bb); }
+    #fit-check-community .fc-photo.two { background: linear-gradient(145deg, #f5cfb9, #cf8a75); height: 156px; }
+    #fit-check-community .fc-photo.three { background: linear-gradient(145deg, #c9d8cf, #799381); height: 156px; }
+    #fit-check-community .fc-person { background: #372e42; border-radius: 54px 54px 8px 8px; height: 142px; position: relative; width: 92px; }
+    #fit-check-community .fc-person::before { background: #d8a17d; border-radius: 50%; content: ''; height: 48px; left: 22px; position: absolute; top: -26px; width: 48px; }
+    #fit-check-community .fc-person::after { background: #25202a; border-radius: 30px 30px 10px 10px; content: ''; height: 25px; left: 17px; position: absolute; top: -32px; transform: rotate(-8deg); width: 58px; }
+    #fit-check-community .fc-person.light { background: #f1e7db; height: 116px; width: 78px; }
+    #fit-check-community .fc-person.green { background: #30453b; height: 116px; width: 78px; }
+    #fit-check-community .fc-photo-tag { background: #ffffffd9; border-radius: 8px; bottom: 10px; color: #2b2332; font-size: 10px; font-weight: 700; left: 10px; padding: 6px 8px; position: absolute; }
+    #fit-check-community .fc-post-actions { align-items: center; display: flex; gap: 14px; padding: 11px 12px 4px; }
+    #fit-check-community .fc-action { align-items: center; background: transparent; border: 0; color: var(--fc-muted); display: flex; font-size: 11px; gap: 5px; padding: 0; }
+    #fit-check-community .fc-action.liked { color: #d45b71; }
+    #fit-check-community .fc-action i { height: 17px; width: 17px; }
+    #fit-check-community .fc-caption { font-size: 11px; line-height: 1.35; margin: 0; padding: 5px 12px 12px; }
+    #fit-check-community .fc-caption strong { font-weight: 750; }
+    #fit-check-community .fc-bottom-nav { background: color-mix(in srgb, var(--fc-surface) 94%, transparent); border-top: 1px solid var(--fc-line); bottom: 0; display: flex; justify-content: space-around; left: 0; padding: 13px 12px 17px; position: absolute; right: 0; }
+    #fit-check-community .fc-nav { align-items: center; background: transparent; border: 0; color: var(--fc-muted); display: flex; flex-direction: column; font-size: 10px; gap: 4px; }
+    #fit-check-community .fc-nav.active { color: var(--fc-purple); font-weight: 750; }
+    #fit-check-community .fc-nav i { height: 17px; width: 17px; }
+    @media (max-width: 420px) { #fit-check-community { padding-left: 0; padding-right: 0; } #fit-check-community .fc-phone { border-width: 0; border-radius: 26px; } }
+  </style>
+
+  <div class="fc-phone" aria-label="Fit Check community feed mockup">
+    <div class="fc-inner">
+      <div class="fc-status"><span>9:41</span><span class="fc-status-icons"><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i><i data-lucide="battery-full" aria-hidden="true"></i></span></div>
+
+      <div class="fc-header">
+        <div><h1>Community</h1><p class="fc-subtitle">Find inspiration. Share your fit.</p></div>
+        <button class="fc-upload" type="button" aria-label="Upload a fit picture"><i data-lucide="camera" aria-hidden="true"></i><span>Post a fit</span></button>
+      </div>
+
+      <div class="fc-tabs" role="tablist" aria-label="Community feed">
+        <button class="fc-tab active" type="button" role="tab" aria-selected="true">Trending</button>
+        <button class="fc-tab" type="button" role="tab" aria-selected="false">Following</button>
+      </div>
+
+      <div class="fc-filter-row"><span class="fc-filter-label"><i data-lucide="flame" aria-hidden="true"></i> Popular on campus</span><button class="fc-filter" type="button"><i data-lucide="sliders-horizontal" aria-hidden="true"></i> Filter</button></div>
+
+      <article class="fc-post">
+        <header class="fc-post-head"><div class="fc-user-avatar">JR</div><div class="fc-user-info"><strong>Jordan Rivera</strong><span>2h ago · Campus casual</span></div><button class="fc-more" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></header>
+        <div class="fc-photo one" aria-label="A campus casual outfit photo"><div class="fc-person"></div><span class="fc-photo-tag">Fall layers</span></div>
+        <div class="fc-post-actions"><button class="fc-action liked" type="button"><i data-lucide="heart" aria-hidden="true"></i>148</button><button class="fc-action" type="button"><i data-lucide="message-circle" aria-hidden="true"></i>24</button><button class="fc-action" type="button"><i data-lucide="bookmark" aria-hidden="true"></i></button></div>
+        <p class="fc-caption"><strong>Jordan Rivera</strong> Layering is carrying me through midterms 🍂</p>
+      </article>
+
+      <article class="fc-post">
+        <header class="fc-post-head"><div class="fc-user-avatar blue">AK</div><div class="fc-user-info"><strong>Alex Kim</strong><span>5h ago · Thrifted</span></div><button class="fc-more" type="button" aria-label="More options"><i data-lucide="ellipsis" aria-hidden="true"></i></button></header>
+        <div class="fc-photo two" aria-label="A thrifted outfit photo"><div class="fc-person light"></div><span class="fc-photo-tag">Thrifted & clean</span></div>
+        <div class="fc-post-actions"><button class="fc-action" type="button"><i data-lucide="heart" aria-hidden="true"></i>96</button><button class="fc-action" type="button"><i data-lucide="message-circle" aria-hidden="true"></i>11</button><button class="fc-action" type="button"><i data-lucide="bookmark" aria-hidden="true"></i></button></div>
+        <p class="fc-caption"><strong>Alex Kim</strong> Found this jacket for $12 🙌</p>
+      </article>
+
+    </div>
+
+    <nav class="fc-bottom-nav" aria-label="Main navigation">
+      <button class="fc-nav" type="button"><i data-lucide="house" aria-hidden="true"></i><span>Home</span></button>
+      <button class="fc-nav" type="button"><i data-lucide="shirt" aria-hidden="true"></i><span>Closet</span></button>
+      <button class="fc-nav active" type="button"><i data-lucide="users" aria-hidden="true"></i><span>Community</span></button>
+      <button class="fc-nav" type="button"><i data-lucide="user-round" aria-hidden="true"></i><span>Profile</span></button>
+    </nav>
+  </div>
+</div>
