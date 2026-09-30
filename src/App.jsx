@@ -1,14 +1,34 @@
-import { SafeAreaView, StyleSheet, View } from 'react-native'
+import { useState } from 'react'
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native'
 import HomeHeader from './components/HomeHeader.jsx'
 import BottomNav from './components/BottomNav.jsx'
+import ClosetScreen from './components/ClosetScreen.jsx'
+import AddItemScreen from './components/AddItemScreen.jsx'
 
 function App() {
+  const [activeTab, setActiveTab] = useState('Home')
+  const [showAddItem, setShowAddItem] = useState(false)
+
+  if (showAddItem) {
+    return <AddItemScreen onBack={() => setShowAddItem(false)} />
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
-        <HomeHeader />
-        <View style={styles.main} />
-        <BottomNav />
+        {activeTab === 'Closet' ? (
+          <ClosetScreen onAddItem={() => setShowAddItem(true)} />
+        ) : (
+          <>
+            <HomeHeader />
+            <View style={styles.main}>
+              <Text style={styles.placeholder}>
+                {activeTab === 'Home' ? 'Home screen coming soon' : `${activeTab} screen coming soon`}
+              </Text>
+            </View>
+          </>
+        )}
+        <BottomNav activeTab={activeTab} onChange={setActiveTab} />
       </View>
     </SafeAreaView>
   )

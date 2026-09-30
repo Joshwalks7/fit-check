@@ -1,0 +1,60 @@
+<div id="fit-check-closet-mock" class="mock-root">
+  <style>
+    #fit-check-closet-mock { --surface:#fbfafc; --panel:#fff; --ink:#19171d; --muted:#756e7d; --line:#e7e2eb; --purple:#7651e8; --purple-soft:#eee9ff; --peach:#f7c2a1; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; color:var(--ink); display:flex; flex-wrap:wrap; gap:24px; justify-content:center; padding:20px 8px; }
+    #fit-check-closet-mock * { box-sizing:border-box; }
+    #fit-check-closet-mock .phone { background:var(--surface); border:7px solid #201d25; border-radius:31px; box-shadow:0 16px 42px #201d2526; overflow:hidden; width:300px; min-height:600px; }
+    #fit-check-closet-mock .screen { padding:19px 15px 74px; position:relative; }
+    #fit-check-closet-mock .top { align-items:center; display:flex; justify-content:space-between; margin-bottom:17px; }
+    #fit-check-closet-mock h1 { font-size:25px; letter-spacing:-.04em; line-height:1; margin:0; }
+    #fit-check-closet-mock .count { color:var(--muted); font-size:11px; margin-top:6px; }
+    #fit-check-closet-mock button { font:inherit; }
+    #fit-check-closet-mock .add { align-items:center; background:var(--purple); border:0; border-radius:11px; color:#fff; display:flex; font-size:11px; font-weight:750; gap:5px; padding:9px 10px; }
+    #fit-check-closet-mock .toolbar { display:flex; gap:7px; margin-bottom:13px; }
+    #fit-check-closet-mock .search { background:var(--panel); border:1px solid var(--line); border-radius:9px; color:var(--muted); flex:1; font-size:11px; padding:9px 10px; }
+    #fit-check-closet-mock .filter { background:var(--purple-soft); border:0; border-radius:9px; color:var(--purple); font-size:11px; font-weight:700; padding:0 10px; }
+    #fit-check-closet-mock .section { border-bottom:1px solid var(--line); padding:11px 0 13px; }
+    #fit-check-closet-mock .section-head { align-items:center; display:flex; justify-content:space-between; }
+    #fit-check-closet-mock .section-title { align-items:center; display:flex; font-size:14px; font-weight:750; gap:8px; }
+    #fit-check-closet-mock .chevron { color:var(--muted); font-size:15px; }
+    #fit-check-closet-mock .section-meta { color:var(--muted); font-size:10px; }
+    #fit-check-closet-mock .grid { display:grid; gap:8px; grid-template-columns:repeat(3,1fr); margin-top:10px; }
+    #fit-check-closet-mock .item { min-width:0; }
+    #fit-check-closet-mock .item-photo { align-items:flex-end; border-radius:10px; display:flex; height:78px; justify-content:center; overflow:hidden; padding-bottom:5px; position:relative; }
+    #fit-check-closet-mock .item-photo::before { background:#42385e; border-radius:19px 19px 5px 5px; content:''; height:53px; width:39px; }
+    #fit-check-closet-mock .peach { background:#f5cfb9; } #fit-check-closet-mock .lilac { background:#ded3fb; } #fit-check-closet-mock .blue { background:#c8d5ee; }
+    #fit-check-closet-mock .item-name { display:block; font-size:10px; font-weight:650; margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #fit-check-closet-mock .item-desc { color:var(--muted); display:block; font-size:9px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #fit-check-closet-mock .nav { background:#fffefeee; border-top:1px solid var(--line); bottom:0; display:flex; justify-content:space-around; left:0; padding:11px 6px 13px; position:absolute; right:0; }
+    #fit-check-closet-mock .nav span { color:var(--muted); font-size:9px; text-align:center; } #fit-check-closet-mock .nav .active { color:var(--purple); font-weight:750; }
+    #fit-check-closet-mock .detail { background:#fff; border-radius:20px; margin:28px 14px; overflow:hidden; }
+    #fit-check-closet-mock .detail-photo { align-items:center; background:#ded3fb; display:flex; height:215px; justify-content:center; position:relative; }
+    #fit-check-closet-mock .detail-photo::before { background:#42385e; border-radius:32px 32px 9px 9px; content:''; height:145px; width:105px; }
+    #fit-check-closet-mock .close { background:#ffffffcc; border:0; border-radius:50%; color:var(--ink); font-size:18px; height:28px; position:absolute; right:10px; top:10px; width:28px; }
+    #fit-check-closet-mock .detail-copy { padding:15px; } #fit-check-closet-mock .detail-copy h2 { font-size:19px; letter-spacing:-.03em; margin:0 0 4px; }
+    #fit-check-closet-mock .detail-copy p { color:var(--muted); font-size:11px; margin:0 0 14px; }
+    #fit-check-closet-mock .facts { display:grid; gap:10px 14px; grid-template-columns:1fr 1fr; } #fit-check-closet-mock .fact label { color:var(--muted); display:block; font-size:9px; margin-bottom:2px; } #fit-check-closet-mock .fact b { font-size:11px; }
+    #fit-check-closet-mock .edit { background:var(--purple); border:0; border-radius:9px; color:#fff; font-size:11px; font-weight:750; margin-top:17px; padding:10px; width:100%; }
+    #fit-check-closet-mock .caption { color:var(--muted); font-size:10px; margin:10px 0 0; text-align:center; }
+  </style>
+  <div class="phone">
+    <div class="screen">
+      <div class="top"><div><h1>My closet</h1><div class="count">24 pieces in your wardrobe</div></div><button class="add">＋ Add item</button></div>
+      <div class="toolbar"><div class="search">⌕  Search your closet</div><button class="filter">☷ Filter</button></div>
+      <div class="section"><div class="section-head"><div class="section-title"><span class="chevron">⌄</span> Hats <span class="section-meta">3</span></div><span class="section-meta">Newest</span></div><div class="grid"><div class="item"><div class="item-photo peach"></div><span class="item-name">Brown cap</span><span class="item-desc">Everyday neutral</span></div><div class="item"><div class="item-photo lilac"></div><span class="item-name">Black beanie</span><span class="item-desc">Soft knit</span></div><div class="item"><div class="item-photo blue"></div><span class="item-name">Canvas hat</span><span class="item-desc">Blue cotton</span></div></div></div>
+      <div class="section"><div class="section-head"><div class="section-title"><span class="chevron">›</span> Accessories <span class="section-meta">5</span></div></div></div>
+      <div class="section"><div class="section-head"><div class="section-title"><span class="chevron">›</span> Shirts <span class="section-meta">7</span></div></div></div>
+      <div class="section"><div class="section-head"><div class="section-title"><span class="chevron">›</span> Pants <span class="section-meta">4</span></div></div></div>
+      <div class="section"><div class="section-head"><div class="section-title"><span class="chevron">›</span> Shoes <span class="section-meta">3</span></div></div></div>
+      <div class="section"><div class="section-head"><div class="section-title"><span class="chevron">›</span> Outerwear <span class="section-meta">2</span></div></div></div>
+      <div class="nav"><span>⌂<br>Home</span><span class="active">▣<br>Closet</span><span>♧<br>Community</span><span>◯<br>Profile</span></div>
+    </div>
+    <div class="caption">Main closet view</div>
+  </div>
+  <div class="phone">
+    <div class="screen"><div class="top"><div><h1>Item details</h1><div class="count">Shirts · 7 items</div></div></div>
+      <div class="detail"><div class="detail-photo"><button class="close">×</button></div><div class="detail-copy"><h2>Vintage graphic tee</h2><p>Relaxed cotton shirt with a faded print.</p><div class="facts"><div class="fact"><label>Category</label><b>Shirts</b></div><div class="fact"><label>Color</label><b>Washed black</b></div><div class="fact"><label>Brand</label><b>Thrifted</b></div><div class="fact"><label>Size</label><b>Medium</b></div><div class="fact"><label>Season</label><b>All season</b></div><div class="fact"><label>Style</label><b>Casual</b></div></div><button class="edit">Edit item</button></div></div>
+      <div class="nav"><span>⌂<br>Home</span><span class="active">▣<br>Closet</span><span>♧<br>Community</span><span>◯<br>Profile</span></div>
+    </div>
+    <div class="caption">Expanded item detail view</div>
+  </div>
+</div>

@@ -2,14 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 const tabs = ['Home', 'Closet', 'Community', 'Profile']
 
-function BottomNav() {
+function BottomNav({ activeTab, onChange }) {
   return (
     <View style={styles.footer}>
       {tabs.map((tab) => {
-        const isActive = tab === 'Home'
+        const isActive = tab === activeTab
 
         return (
-          <Pressable key={tab} accessibilityRole="button" style={styles.tab}>
+          <Pressable key={tab} accessibilityRole="button" onPress={() => onChange(tab)} style={styles.tab}>
             <Text style={[styles.tabLabel, isActive && styles.activeLabel]}>{tab}</Text>
           </Pressable>
         )
