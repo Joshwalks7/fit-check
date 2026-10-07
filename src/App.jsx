@@ -1,13 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native'
+import { supabase } from './lib/supabase.js'
 import HomeHeader from './components/HomeHeader.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import ClosetScreen from './components/ClosetScreen.jsx'
 import AddItemScreen from './components/AddItemScreen.jsx'
+import LoginScreen from './components/LoginScreen.jsx'
 
 function App() {
+  const [session, setSession] = useState(null)
   const [activeTab, setActiveTab] = useState('Home')
   const [showAddItem, setShowAddItem] = useState(false)
+
+  useEffect(() => {
+    // Check current session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    // Listen for changes to auth state (login, logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // If user is not logged in, show the Login screen
+  if (!session) {
+    return <LoginScreen />
+  }
 
   if (showAddItem) {
     return <AddItemScreen onBack={() => setShowAddItem(false)} />
