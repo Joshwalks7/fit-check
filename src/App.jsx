@@ -6,6 +6,7 @@ import BottomNav from './components/BottomNav.jsx'
 import ClosetScreen from './components/ClosetScreen.jsx'
 import AddItemScreen from './components/AddItemScreen.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
+import SignOutButton from './components/SignOutButton.jsx'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -50,6 +51,7 @@ function App() {
             </View>
           </>
         )}
+        <SignOutButton />
         <BottomNav activeTab={activeTab} onChange={setActiveTab} />
       </View>
     </SafeAreaView>
