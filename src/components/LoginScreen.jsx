@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { signInWithEmail, signUpWithEmail } from '../services/auth';
+import { signInWithEmail, signUpWithEmail, signInWithGoogle } from '../services/auth';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -79,6 +79,18 @@ export default function LoginScreen({ onLoginSuccess }) {
           {isSigningUp ? 'Already have an account? Log In' : "Don't have an account? Sign Up"}
         </Text>
       </TouchableOpacity>
+      <TouchableOpacity 
+          style={[styles.button, { backgroundColor: '#4285F4', marginTop: 12 }]} 
+          onPress={async () => {
+            try {
+              await signInWithGoogle();
+            } catch (error) {
+              Alert.alert('Google Sign-In Failed', error.message);
+            }
+          }}
+        >
+          <Text style={styles.buttonText}>Sign In with Google</Text>
+        </TouchableOpacity>
     </View>
   );
 }
