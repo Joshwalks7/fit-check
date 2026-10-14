@@ -7,6 +7,7 @@ import ClosetScreen from './components/ClosetScreen.jsx'
 import AddItemScreen from './components/AddItemScreen.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import SignOutButton from './components/SignOutButton.jsx'
+import MarketplaceScreen from './components/MarketplaceScreen.jsx'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -41,6 +42,8 @@ function App() {
       <View style={styles.screen}>
         {activeTab === 'Closet' ? (
           <ClosetScreen onAddItem={() => setShowAddItem(true)} />
+        ) : activeTab === 'Marketplace' ? (
+          <MarketplaceScreen />
         ) : (
           <>
             <HomeHeader />
