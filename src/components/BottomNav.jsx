@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
-const tabs = ['Home', 'Closet', 'Community', 'Profile']
+const tabs = ['Home', 'Closet', 'Marketplace', 'Community', 'Profile']
 
 function BottomNav({ activeTab, onChange }) {
   return (
