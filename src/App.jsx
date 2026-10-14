@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase.js'
 import HomeHeader from './components/HomeHeader.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import ClosetScreen from './components/ClosetScreen.jsx'
+import CommunityScreen from './components/CommunityScreen.jsx'
 import AddItemScreen from './components/AddItemScreen.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import SignOutButton from './components/SignOutButton.jsx'
@@ -44,6 +45,8 @@ function App() {
           <ClosetScreen onAddItem={() => setShowAddItem(true)} />
         ) : activeTab === 'Marketplace' ? (
           <MarketplaceScreen />
+        ) : activeTab === 'Community' ? (
+          <CommunityScreen />
         ) : (
           <>
             <HomeHeader />
