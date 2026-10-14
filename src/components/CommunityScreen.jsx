@@ -134,13 +134,13 @@ function CreatePostModal({ visible, onClose, onCreated }) {
           </Pressable>
 
           <Text style={styles.label}>Title</Text>
-          <TextInput onChangeText={setTitle} placeholder="Fall layers" placeholderTextColor="#756e7d" style={styles.input} value={title} />
+          <TextInput onChangeText={setTitle} placeholder="Outfit name" placeholderTextColor="#756e7d" style={styles.input} value={title} />
 
           <Text style={styles.label}>Description</Text>
           <TextInput
             multiline
             onChangeText={setDescription}
-            placeholder="Tell everyone about your fit..."
+            placeholder="Outfit description"
             placeholderTextColor="#756e7d"
             style={[styles.input, styles.multiline]}
             value={description}
@@ -196,7 +196,7 @@ function CommunityScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Community</Text>
-            <Text style={styles.subtitle}>Find inspiration. Share your fit.</Text>
+            <Text style={styles.subtitle}>Check your fit</Text>
           </View>
           <Pressable accessibilityRole="button" onPress={() => setShowCreate(true)} style={styles.createButton}>
             <Text style={styles.createButtonText}>＋ Create post</Text>
