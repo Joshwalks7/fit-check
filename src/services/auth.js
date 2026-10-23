@@ -38,7 +38,7 @@ export async function signInWithGoogle() {
     const redirectUrl = makeRedirectUri({
       scheme: 'my-app', // Make sure this matches your app.json scheme or app slug
     });
-
+    console.log('OAuth redirect URL:', redirectUrl);
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -46,6 +46,8 @@ export async function signInWithGoogle() {
         skipBrowserRedirect: true,
       },
     });
+    console.log('OAuth URL:', data?.url);
+    console.log('Redirect URL:', redirectUrl);
 
     if (error) throw error;
 

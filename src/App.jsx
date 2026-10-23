@@ -9,6 +9,7 @@ import AddItemScreen from './components/AddItemScreen.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import SignOutButton from './components/SignOutButton.jsx'
 import MarketplaceScreen from './components/MarketplaceScreen.jsx'
+import ProfileScreen from './components/ProfileScreen.jsx'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -47,6 +48,8 @@ function App() {
           <MarketplaceScreen />
         ) : activeTab === 'Community' ? (
           <CommunityScreen />
+        ) : activeTab === 'Profile' ? (
+          <ProfileScreen user={session.user} />
         ) : (
           <>
             <HomeHeader />
