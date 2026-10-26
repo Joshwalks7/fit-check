@@ -1,19 +1,35 @@
 import { supabase } from '../lib/supabase';
 
 const TABLE = 'community_post';
+const PROFILE_TABLE = 'profiles';
 const BUCKET = 'post-images';
 
 // map a community_post row to the shape the UI uses
-function toPost(row) {
+function toPost(row, profileByUserId = {}) {
   return {
     id: row.id,
-    user_id: row['user id'],
+    user_id: row['user_id'],
     author_name: row.author_name,
+    avatar_url: profileByUserId[row['user_id']]?.avatar_url || null,
     title: row.title,
     description: row.description,
     image_url: row.image,
     created_at: row.created_at,
   };
+}
+
+async function addProfileImages(rows) {
+  const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))];
+  if (!userIds.length) return rows.map((row) => toPost(row));
+
+  const { data: profiles, error } = await supabase
+    .from(PROFILE_TABLE)
+    .select('id, avatar_url')
+    .in('id', userIds);
+  if (error) throw error;
+
+  const profileByUserId = Object.fromEntries(profiles.map((profile) => [profile.id, profile]));
+  return rows.map((row) => toPost(row, profileByUserId));
 }
 
 // get all community posts, newest first
@@ -23,7 +39,18 @@ export async function fetchPosts() {
     .select('*')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data.map(toPost);
+  return addProfileImages(data);
+}
+
+// get posts created by one user, newest first
+export async function fetchPostsByUser(userId) {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return addProfileImages(data);
 }
 
 // upload a picked image to storage and return its public url
@@ -50,7 +77,7 @@ export async function createPost({ image, title, description }) {
   const { data, error } = await supabase
     .from(TABLE)
     .insert({
-      'user id': user.id,
+      'user_id': user.id,
       author_name: user.user_metadata?.full_name || user.email,
       title,
       description,
@@ -59,5 +86,5 @@ export async function createPost({ image, title, description }) {
     .select()
     .single();
   if (error) throw error;
-  return toPost(data);
+  return (await addProfileImages([data]))[0];
 }

@@ -48,7 +48,11 @@ function PostCard({ post }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{initials(post.author_name)}</Text></View>
+        {post.avatar_url ? (
+          <Image source={{ uri: post.avatar_url }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatar}><Text style={styles.avatarText}>{initials(post.author_name)}</Text></View>
+        )}
         <View style={styles.authorInfo}>
           <Text numberOfLines={1} style={styles.authorName}>{post.author_name}</Text>
           <Text style={styles.timestamp}>{formatTimestamp(post.created_at)}</Text>
