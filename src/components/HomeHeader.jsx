@@ -1,15 +1,30 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { Image, StyleSheet, Text, View } from 'react-native'
 
-function HomeHeader() {
+function initials(name = '') {
+  return name
+    .split(/[\s@]/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('')
+}
+
+function HomeHeader({ user, profile }) {
+  const displayName = profile?.full_name || user.user_metadata?.full_name || user.email
+
   return (
     <View style={styles.header}>
       <View>
         <Text style={styles.eyebrow}>Monday, October 7</Text>
         <Text style={styles.greeting}>Good morning</Text>
       </View>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>M</Text>
-      </View>
+      {profile?.avatar_url ? (
+        <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+      ) : (
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials(displayName)}</Text>
+        </View>
+      )}
     </View>
   )
 }
@@ -35,10 +50,10 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
     backgroundColor: '#f7c2a1',
-    borderRadius: 20,
-    height: 40,
+    borderRadius: 32,
+    height: 64,
     justifyContent: 'center',
-    width: 40,
+    width: 64,
   },
   avatarText: {
     color: '#4a2a20',
