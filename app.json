@@ -3,8 +3,14 @@
     "name": "My App",
     "slug": "my-app",
     "version": "1.0.0",
+    "scheme": "my-app",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"]
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }
