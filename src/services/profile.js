@@ -11,6 +11,21 @@ export async function getProfile(userId) {
   return data
 }
 
+export async function searchProfiles(query) {
+  const normalizedQuery = query.trim()
+  if (!normalizedQuery) return []
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .ilike('full_name', `%${normalizedQuery}%`)
+    .order('full_name', { ascending: true })
+    .limit(20)
+
+  if (error) throw error
+  return data || []
+}
+
 export async function uploadAvatar(user, image) {
   try {
     const response = await fetch(image.uri)

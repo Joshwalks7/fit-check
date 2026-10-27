@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { createPost, fetchPosts } from '../services/posts.js'
+import { searchProfiles } from '../services/profile.js'
+import { followUser, getCurrentUser, isFollowing, unfollowUser } from '../services/follows.js'
 
 function formatTimestamp(value) {
   const date = new Date(value)
@@ -170,6 +172,13 @@ function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(null)
+  const [currentUserId, setCurrentUserId] = useState(null)
+  const [followStates, setFollowStates] = useState({})
+  const [followLoading, setFollowLoading] = useState({})
   const { width } = useWindowDimensions()
   const columnCount = Math.max(2, Math.floor((width - SCREEN_PADDING * 2 + COLUMN_GAP) / (MIN_COLUMN_WIDTH + COLUMN_GAP)))
 
@@ -184,10 +193,77 @@ function CommunityScreen() {
     loadPosts().finally(() => setLoading(false))
   }, [loadPosts])
 
+  useEffect(() => {
+    getCurrentUser().then((user) => setCurrentUserId(user.id)).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!searchResults.length) {
+      return () => { cancelled = true }
+    }
+
+    Promise.all(searchResults.map(async (profile) => [profile.id, await isFollowing(profile.id)]))
+      .then((entries) => {
+        if (!cancelled) setFollowStates(Object.fromEntries(entries))
+      })
+      .catch(() => {})
+
+    return () => { cancelled = true }
+  }, [searchResults])
+
   const refresh = async () => {
     setRefreshing(true)
     await loadPosts()
     setRefreshing(false)
+  }
+
+  const searchUsers = useCallback(async (query) => {
+    const normalizedQuery = query.trim()
+    if (!normalizedQuery) {
+      setSearchResults([])
+      setSearchError(null)
+      return
+    }
+
+    setSearching(true)
+    setSearchError(null)
+    try {
+      setFollowStates({})
+      setSearchResults(await searchProfiles(normalizedQuery))
+    } catch (err) {
+      setSearchError(err.message)
+      setSearchResults([])
+    } finally {
+      setSearching(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!searchQuery.trim()) return undefined
+
+    const timeout = setTimeout(() => {
+      searchUsers(searchQuery)
+    }, 300)
+
+    return () => clearTimeout(timeout)
+  }, [searchQuery, searchUsers])
+
+  const toggleFollow = async (profileId) => {
+    setFollowLoading((current) => ({ ...current, [profileId]: true }))
+    try {
+      if (followStates[profileId]) {
+        await unfollowUser(profileId)
+      } else {
+        await followUser(profileId)
+      }
+      setFollowStates((current) => ({ ...current, [profileId]: !current[profileId] }))
+    } catch (err) {
+      setSearchError(err.message)
+    } finally {
+      setFollowLoading((current) => ({ ...current, [profileId]: false }))
+    }
   }
 
   return (
@@ -206,6 +282,59 @@ function CommunityScreen() {
             <Text style={styles.createButtonText}>＋ Create post</Text>
           </Pressable>
         </View>
+        <View style={styles.searchRow}>
+          <TextInput
+            autoCapitalize="words"
+            onChangeText={setSearchQuery}
+            onSubmitEditing={() => searchUsers(searchQuery)}
+            placeholder="Search people"
+            placeholderTextColor="#756e7d"
+            returnKeyType="search"
+            style={styles.searchInput}
+            value={searchQuery}
+          />
+          <Pressable accessibilityRole="button" onPress={() => searchUsers(searchQuery)} style={styles.searchButton}>
+            <Text style={styles.searchButtonText}>Search</Text>
+          </Pressable>
+        </View>
+        {searching && <ActivityIndicator color="#7651e8" style={styles.searchLoader} />}
+        {!!searchError && <Text style={styles.searchError}>{searchError}</Text>}
+        {!searching && searchQuery.trim() && !searchError && !searchResults.length && (
+          <Text style={styles.searchEmpty}>No people found.</Text>
+        )}
+        {!!searchResults.length && (
+          <View style={styles.searchResults}>
+            <Text style={styles.searchResultsTitle}>People</Text>
+            {searchResults.map((result) => (
+              <View key={result.id} style={styles.searchResult}>
+                {result.avatar_url ? (
+                  <Image source={{ uri: result.avatar_url }} style={styles.searchAvatar} />
+                ) : (
+                  <View style={styles.searchAvatar}><Text style={styles.avatarText}>{initials(result.full_name)}</Text></View>
+                )}
+                <Text numberOfLines={1} style={styles.searchName}>{result.full_name || 'Unnamed user'}</Text>
+                {result.id === currentUserId ? (
+                  <Text style={styles.youLabel}>You</Text>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={followLoading[result.id]}
+                    onPress={() => toggleFollow(result.id)}
+                    style={[styles.followButton, followStates[result.id] && styles.followingButton]}
+                  >
+                    {followLoading[result.id] ? (
+                      <ActivityIndicator color={followStates[result.id] ? '#7651e8' : '#fff'} size="small" />
+                    ) : (
+                      <Text style={[styles.followButtonText, followStates[result.id] && styles.followingButtonText]}>
+                        {followStates[result.id] ? 'Following' : 'Follow'}
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
         {posts.length ? (
           <View style={styles.grid}>
             {toColumns(posts, columnCount).map((column, index) => (
@@ -254,6 +383,23 @@ const styles = StyleSheet.create({
   commentText: { color: '#7651e8', fontSize: 10, fontWeight: '700' },
   commentNote: { color: '#756e7d', fontSize: 10, marginTop: 5 },
   errorText: { color: '#c0392b', fontSize: 12, marginTop: 12 },
+  searchRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  searchInput: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 10, borderWidth: 1, color: '#19171d', flex: 1, fontSize: 14, paddingHorizontal: 11, paddingVertical: 9 },
+  searchButton: { backgroundColor: '#eee9ff', borderRadius: 10, justifyContent: 'center', paddingHorizontal: 12 },
+  searchButtonText: { color: '#7651e8', fontSize: 12, fontWeight: '700' },
+  searchLoader: { marginBottom: 12 },
+  searchError: { color: '#c0392b', fontSize: 12, marginBottom: 12 },
+  searchEmpty: { color: '#756e7d', fontSize: 12, marginBottom: 12 },
+  searchResults: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 12, borderWidth: 1, marginBottom: 16, padding: 10 },
+  searchResultsTitle: { color: '#19171d', fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  searchResult: { alignItems: 'center', flexDirection: 'row', paddingVertical: 7 },
+  searchAvatar: { alignItems: 'center', backgroundColor: '#f7c2a1', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
+  searchName: { color: '#19171d', flex: 1, fontSize: 13, fontWeight: '600', marginLeft: 9 },
+  followButton: { alignItems: 'center', backgroundColor: '#7651e8', borderRadius: 8, justifyContent: 'center', minWidth: 78, paddingHorizontal: 10, paddingVertical: 7 },
+  followingButton: { backgroundColor: '#eee9ff', borderColor: '#d8cdfb', borderWidth: 1 },
+  followButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  followingButtonText: { color: '#7651e8' },
+  youLabel: { color: '#756e7d', fontSize: 11, fontWeight: '600', paddingHorizontal: 10 },
   modalBackdrop: { alignItems: 'center', backgroundColor: '#19171d99', flex: 1, justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: '#fff', borderRadius: 20, maxWidth: 380, padding: 18, width: '100%' },
   modalTitle: { color: '#19171d', fontSize: 18, fontWeight: '700', marginBottom: 14 },

@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import * as ImagePicker from 'expo-image-picker'
 import { uploadAvatar } from '../services/profile.js'
 import { fetchPostsByUser } from '../services/posts.js'
+import { getFollowerCount, getFollowingCount } from '../services/follows.js'
 import SignOutButton from './SignOutButton.jsx';
 
 function formatTimestamp(value) {
@@ -26,12 +27,25 @@ function ProfileScreen({ user, profile, setProfile }) {
   const [selectedPost, setSelectedPost] = useState(null)
   const [postsLoading, setPostsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
+  const [followCountsLoading, setFollowCountsLoading] = useState(true)
 
   useEffect(() => {
     fetchPostsByUser(user.id)
       .then(setPosts)
       .catch((error) => Alert.alert('Could not load posts', error.message))
       .finally(() => setPostsLoading(false))
+  }, [user.id])
+
+  useEffect(() => {
+    Promise.all([getFollowerCount(user.id), getFollowingCount(user.id)])
+      .then(([followers, following]) => {
+        setFollowerCount(followers)
+        setFollowingCount(following)
+      })
+      .catch((error) => Alert.alert('Could not load follow counts', error.message))
+      .finally(() => setFollowCountsLoading(false))
   }, [user.id])
 
   const chooseAvatar = async () => {
@@ -79,6 +93,16 @@ function ProfileScreen({ user, profile, setProfile }) {
       <Text style={styles.name}>{displayName}</Text>
       <Text style={styles.email}>{user.email}</Text>
       <Text style={styles.hint}>Tap your picture to change it</Text>
+      <View style={styles.statsRow}>
+        <View style={styles.stat}>
+          <Text style={styles.statValue}>{followCountsLoading ? '—' : followerCount}</Text>
+          <Text style={styles.statLabel}>Followers</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statValue}>{followCountsLoading ? '—' : followingCount}</Text>
+          <Text style={styles.statLabel}>Following</Text>
+        </View>
+      </View>
       <View style={styles.postsSection}>
         <Text style={styles.postsTitle}>Your posts</Text>
         {postsLoading ? (
@@ -195,6 +219,24 @@ const styles = StyleSheet.create({
     color: '#756e7d',
     fontSize: 12,
     marginTop: 18,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 36,
+    marginTop: 20,
+  },
+  stat: {
+    alignItems: 'center',
+  },
+  statValue: {
+    color: '#292331',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: '#756e7d',
+    fontSize: 11,
+    marginTop: 3,
   },
   postsSection: {
     alignSelf: 'stretch',
