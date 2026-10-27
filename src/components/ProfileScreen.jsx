@@ -5,6 +5,7 @@ import { uploadAvatar } from '../services/profile.js'
 import { fetchPostsByUser } from '../services/posts.js'
 import { getFollowerCount, getFollowingCount } from '../services/follows.js'
 import SignOutButton from './SignOutButton.jsx';
+import CommentSection from './CommentSection.jsx'
 
 function formatTimestamp(value) {
   const date = new Date(value)
@@ -163,9 +164,7 @@ function ProfileScreen({ user, profile, setProfile }) {
               <View style={styles.detailBody}>
                 <Text style={styles.detailTitle}>{selectedPost?.title}</Text>
                 {!!selectedPost?.description && <Text style={styles.detailDescription}>{selectedPost.description}</Text>}
-                <Pressable onPress={() => Alert.alert('Coming soon', 'Comments will be available here.')} style={styles.commentButton}>
-                  <Text style={styles.commentText}>💬 Add comment</Text>
-                </Pressable>
+                {selectedPost && <CommentSection postId={selectedPost.id} />}
               </View>
             </ScrollView>
           </View>
@@ -362,19 +361,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 7,
-  },
-  commentButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#eee9ff',
-    borderRadius: 8,
-    marginTop: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  commentText: {
-    color: '#7651e8',
-    fontSize: 11,
-    fontWeight: '700',
   },
 })
 

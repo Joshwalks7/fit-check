@@ -4,6 +4,8 @@ import * as ImagePicker from 'expo-image-picker'
 import { createPost, fetchPosts } from '../services/posts.js'
 import { searchProfiles } from '../services/profile.js'
 import { followUser, getCurrentUser, isFollowing, unfollowUser } from '../services/follows.js'
+import { fetchCommentPreviews } from '../services/comments.js'
+import CommentSection from './CommentSection.jsx'
 
 function formatTimestamp(value) {
   const date = new Date(value)
@@ -45,8 +47,29 @@ function PostImage({ uri }) {
   return <Image source={{ uri }} style={[styles.cardImage, { aspectRatio }]} resizeMode="contain" />
 }
 
-function PostCard({ post }) {
-  const [showCommentNote, setShowCommentNote] = useState(false)
+function CommentsModal({ post, onClose, onCommentsChange }) {
+  return (
+    <Modal animationType="fade" transparent visible={!!post} onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, styles.commentsModal]}>
+          <View style={styles.commentsHeader}>
+            <Text numberOfLines={1} style={styles.commentsTitle}>{post?.title}</Text>
+            <Pressable accessibilityLabel="Close comments" accessibilityRole="button" onPress={onClose}>
+              <Text style={styles.closeText}>×</Text>
+            </Pressable>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {post && <CommentSection postId={post.id} onCommentsChange={onCommentsChange} />}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+function PostCard({ post, onCommentsChange }) {
+  const [showComments, setShowComments] = useState(false)
+  const previewComments = post.comments || []
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -64,11 +87,25 @@ function PostCard({ post }) {
       <View style={styles.cardBody}>
         <Text numberOfLines={2} style={styles.cardTitle}>{post.title}</Text>
         {!!post.description && <Text numberOfLines={3} style={styles.cardDescription}>{post.description}</Text>}
-        <Pressable accessibilityRole="button" onPress={() => setShowCommentNote(true)} style={styles.commentButton}>
-          <Text style={styles.commentText}>💬 Add comment</Text>
+        {!!previewComments.length && (
+          <View style={styles.commentPreview}>
+            {previewComments.map((comment) => (
+              <Text key={comment.id} numberOfLines={2} style={styles.previewText}>
+                <Text style={styles.previewAuthor}>{comment.author_name} </Text>
+                {comment.body}
+              </Text>
+            ))}
+          </View>
+        )}
+        <Pressable accessibilityRole="button" onPress={() => setShowComments(true)} style={styles.commentButton}>
+          <Text style={styles.commentText}>Comment</Text>
         </Pressable>
-        {showCommentNote && <Text style={styles.commentNote}>Comments coming soon</Text>}
       </View>
+      <CommentsModal
+        post={showComments ? post : null}
+        onClose={() => setShowComments(false)}
+        onCommentsChange={(comments) => onCommentsChange(post.id, comments.slice(-2))}
+      />
     </View>
   )
 }
@@ -183,11 +220,16 @@ function CommunityScreen() {
   const columnCount = Math.max(2, Math.floor((width - SCREEN_PADDING * 2 + COLUMN_GAP) / (MIN_COLUMN_WIDTH + COLUMN_GAP)))
 
   const loadPosts = useCallback(() => fetchPosts()
-    .then((data) => {
+    .then(async (data) => {
+      const previews = await fetchCommentPreviews(data.map((post) => post.id)).catch(() => ({}))
       setError(null)
-      setPosts(data)
+      setPosts(data.map((post) => ({ ...post, comments: previews[post.id] || [] })))
     })
     .catch((err) => setError(err.message)), [])
+
+  const updatePostComments = (postId, comments) => {
+    setPosts((current) => current.map((post) => (post.id === postId ? { ...post, comments } : post)))
+  }
 
   useEffect(() => {
     loadPosts().finally(() => setLoading(false))
@@ -339,7 +381,7 @@ function CommunityScreen() {
           <View style={styles.grid}>
             {toColumns(posts, columnCount).map((column, index) => (
               <View key={index} style={styles.column}>
-                {column.map((post) => <PostCard key={post.id} post={post} />)}
+                {column.map((post) => <PostCard key={post.id} post={post} onCommentsChange={updatePostComments} />)}
               </View>
             ))}
           </View>
@@ -381,7 +423,13 @@ const styles = StyleSheet.create({
   cardDescription: { color: '#19171d', fontSize: 11, lineHeight: 15, marginTop: 3 },
   commentButton: { alignSelf: 'flex-start', backgroundColor: '#eee9ff', borderRadius: 8, marginTop: 7, paddingHorizontal: 8, paddingVertical: 5 },
   commentText: { color: '#7651e8', fontSize: 10, fontWeight: '700' },
-  commentNote: { color: '#756e7d', fontSize: 10, marginTop: 5 },
+  commentPreview: { borderTopColor: '#f0ecf3', borderTopWidth: 1, gap: 3, marginTop: 7, paddingTop: 6 },
+  previewText: { color: '#19171d', fontSize: 10, lineHeight: 14 },
+  previewAuthor: { fontWeight: '700' },
+  commentsModal: { maxHeight: '80%' },
+  commentsHeader: { alignItems: 'center', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
+  commentsTitle: { color: '#19171d', flex: 1, fontSize: 18, fontWeight: '700' },
+  closeText: { color: '#756e7d', fontSize: 26, lineHeight: 28 },
   errorText: { color: '#c0392b', fontSize: 12, marginTop: 12 },
   searchRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   searchInput: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 10, borderWidth: 1, color: '#19171d', flex: 1, fontSize: 14, paddingHorizontal: 11, paddingVertical: 9 },
