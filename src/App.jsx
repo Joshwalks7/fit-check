@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Alert, SafeAreaView, StyleSheet, Text, View } from 'react-native'
+import { Alert, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native'
 import { supabase } from './lib/supabase.js'
 import { getProfile } from './services/profile.js'
 import HomeHeader from './components/HomeHeader.jsx'
+import ForgottenItemCard from './components/ForgottenItemCard.jsx'
+import FitOfTheDayCard from './components/FitOfTheDayCard.jsx'
+import PostStreakCard from './components/PostStreakCard.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import ClosetScreen from './components/ClosetScreen.jsx'
 import CommunityScreen from './components/CommunityScreen.jsx'
@@ -74,14 +77,13 @@ function App() {
         ) : activeTab === 'Profile' ? (
           <ProfileScreen user={session.user} profile={profile} setProfile={setProfile} />
         ) : (
-          <>
-            <HomeHeader user={session.user} profile={profile} />
-            <View style={styles.main}>
-              <Text style={styles.placeholder}>
-                {activeTab === 'Home' ? 'Home screen coming soon' : `${activeTab} screen coming soon`}
-              </Text>
-            </View>
-          </>
+          <ScrollView style={styles.main} contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}>
+            <HomeHeader user={session.user} profile={profile}>
+              <PostStreakCard userId={session.user.id} />
+            </HomeHeader>
+            <FitOfTheDayCard />
+            <ForgottenItemCard onWear={() => setActiveTab('Community')} onList={() => setActiveTab('Marketplace')} />
+          </ScrollView>
         )}
         <BottomNav activeTab={activeTab} onChange={setActiveTab} />
       </View>
@@ -99,6 +101,9 @@ const styles = StyleSheet.create({
   },
   main: {
     flex: 1,
+  },
+  homeContent: {
+    paddingBottom: 24,
   },
 })
 
