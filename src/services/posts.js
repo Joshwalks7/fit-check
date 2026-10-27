@@ -88,3 +88,37 @@ export async function createPost({ image, title, description }) {
   if (error) throw error;
   return (await addProfileImages([data]))[0];
 }
+
+export async function fetchFitOfTheDay() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  const { data: posts, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .gte('created_at', start.toISOString())
+    .lt('created_at', end.toISOString())
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  if (!posts.length) return null;
+
+  const { data: comments, error: commentsError } = await supabase
+    .from('comments')
+    .select('post_id')
+    .in('post_id', posts.map((post) => post.id));
+  if (commentsError) throw commentsError;
+
+  const countByPostId = {};
+  comments.forEach((comment) => {
+    countByPostId[comment.post_id] = (countByPostId[comment.post_id] || 0) + 1;
+  });
+
+  const top = posts.reduce((best, post) => (
+    (countByPostId[post.id] || 0) > (countByPostId[best.id] || 0) ? post : best
+  ));
+
+  const [post] = await addProfileImages([top]);
+  return { ...post, comment_count: countByPostId[top.id] || 0 };
+}
