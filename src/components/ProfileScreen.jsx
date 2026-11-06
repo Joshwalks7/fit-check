@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import * as ImagePicker from 'expo-image-picker'
 import { uploadAvatar } from '../services/profile.js'
 import { fetchPostsByUser } from '../services/posts.js'
-import { getFollowerCount, getFollowingCount } from '../services/follows.js'
+import { followUser, getFollowerCount, getFollowingCount, isFollowing, unfollowUser } from '../services/follows.js'
 import SignOutButton from './SignOutButton.jsx';
 import CommentSection from './CommentSection.jsx'
 
@@ -23,7 +23,7 @@ function initials(name = '') {
   return name.split(/[\s@]/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('')
 }
 
-function ProfileScreen({ user, profile, setProfile }) {
+function ProfileScreen({ user, profile, setProfile, isPublic = false, onBack }) {
   const [posts, setPosts] = useState([])
   const [selectedPost, setSelectedPost] = useState(null)
   const [postsLoading, setPostsLoading] = useState(true)
@@ -31,6 +31,9 @@ function ProfileScreen({ user, profile, setProfile }) {
   const [followerCount, setFollowerCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [followCountsLoading, setFollowCountsLoading] = useState(true)
+  const [following, setFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
+  const [followError, setFollowError] = useState(null)
 
   useEffect(() => {
     fetchPostsByUser(user.id)
@@ -48,6 +51,40 @@ function ProfileScreen({ user, profile, setProfile }) {
       .catch((error) => Alert.alert('Could not load follow counts', error.message))
       .finally(() => setFollowCountsLoading(false))
   }, [user.id])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isPublic) return () => { cancelled = true }
+
+    isFollowing(user.id)
+      .then((value) => {
+        if (!cancelled) setFollowing(value)
+      })
+      .catch((error) => {
+        if (!cancelled) setFollowError(error.message)
+      })
+
+    return () => { cancelled = true }
+  }, [isPublic, user.id])
+
+  const toggleFollow = async () => {
+    setFollowLoading(true)
+    setFollowError(null)
+    try {
+      if (following) {
+        await unfollowUser(user.id)
+      } else {
+        await followUser(user.id)
+      }
+      setFollowing((current) => !current)
+      setFollowerCount((current) => current + (following ? -1 : 1))
+    } catch (error) {
+      setFollowError(error.message)
+    } finally {
+      setFollowLoading(false)
+    }
+  }
 
   const chooseAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -76,24 +113,38 @@ function ProfileScreen({ user, profile, setProfile }) {
     }
   }
 
-  const displayName = profile?.full_name || user.user_metadata?.full_name || user.email
+  const displayName = profile?.full_name || user.user_metadata?.full_name || user.email || 'Unnamed user'
+
+  const avatarContent = profile?.avatar_url ? (
+    <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+  ) : (
+    <View style={styles.avatarPlaceholder}>
+      <Text style={styles.placeholderText}>{isPublic ? 'No photo' : 'Add photo'}</Text>
+    </View>
+  )
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Profile</Text>
-      <Pressable accessibilityRole="button" onPress={chooseAvatar} disabled={uploading}>
-        {profile?.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.placeholderText}>Add photo</Text>
-          </View>
-        )}
-      </Pressable>
-      {uploading && <ActivityIndicator style={styles.uploadIndicator} color="#7651e8" />}
+      <View style={[styles.titleRow, !onBack && styles.titleRowCentered]}>
+        {onBack ? (
+          <Pressable accessibilityLabel="Back to community" accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backText}>‹ Back</Text>
+          </Pressable>
+        ) : <View style={styles.backButtonSpacer} />}
+        <Text style={styles.title}>Profile</Text>
+        <View style={styles.backButtonSpacer} />
+      </View>
+      {isPublic ? (
+        avatarContent
+      ) : (
+        <Pressable accessibilityRole="button" onPress={chooseAvatar} disabled={uploading}>
+          {avatarContent}
+        </Pressable>
+      )}
+      {!isPublic && uploading && <ActivityIndicator style={styles.uploadIndicator} color="#7651e8" />}
       <Text style={styles.name}>{displayName}</Text>
-      <Text style={styles.email}>{user.email}</Text>
-      <Text style={styles.hint}>Tap your picture to change it</Text>
+      {!isPublic && <Text style={styles.email}>{user.email}</Text>}
+      {!isPublic && <Text style={styles.hint}>Tap your picture to change it</Text>}
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statValue}>{followCountsLoading ? '—' : followerCount}</Text>
@@ -104,8 +155,27 @@ function ProfileScreen({ user, profile, setProfile }) {
           <Text style={styles.statLabel}>Following</Text>
         </View>
       </View>
+      {isPublic && (
+        <View style={styles.followSection}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={followLoading}
+            onPress={toggleFollow}
+            style={[styles.followButton, following && styles.followingButton]}
+          >
+            {followLoading ? (
+              <ActivityIndicator color={following ? '#7651e8' : '#fff'} size="small" />
+            ) : (
+              <Text style={[styles.followButtonText, following && styles.followingButtonText]}>
+                {following ? 'Following' : 'Follow'}
+              </Text>
+            )}
+          </Pressable>
+          {!!followError && <Text style={styles.followError}>{followError}</Text>}
+        </View>
+      )}
       <View style={styles.postsSection}>
-        <Text style={styles.postsTitle}>Your posts</Text>
+        <Text style={styles.postsTitle}>{isPublic ? `${displayName}'s posts` : 'Your posts'}</Text>
         {postsLoading ? (
           <ActivityIndicator color="#7651e8" style={styles.postsLoader} />
         ) : posts.length ? (
@@ -129,9 +199,9 @@ function ProfileScreen({ user, profile, setProfile }) {
             ))}
           </View>
         ) : (
-          <Text style={styles.emptyPosts}>You haven't shared any posts yet.</Text>
+          <Text style={styles.emptyPosts}>{isPublic ? `${displayName} hasn't shared any posts yet.` : "You haven't shared any posts yet."}</Text>
         )}
-        <SignOutButton />
+        {!isPublic && <SignOutButton />}
       </View>
       <Modal
         animationType="slide"
@@ -185,6 +255,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 28,
   },
+  titleRow: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  titleRowCentered: {
+    justifyContent: 'center',
+  },
+  backButton: {
+    minWidth: 56,
+  },
+  backButtonSpacer: {
+    minWidth: 56,
+  },
+  backText: {
+    color: '#7651e8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   avatar: {
     borderRadius: 64,
     height: 128,
@@ -223,6 +313,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 36,
     marginTop: 20,
+  },
+  followSection: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  followButton: {
+    alignItems: 'center',
+    backgroundColor: '#7651e8',
+    borderRadius: 9,
+    justifyContent: 'center',
+    minWidth: 140,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  followingButton: {
+    backgroundColor: '#eee9ff',
+    borderColor: '#d8cdfb',
+    borderWidth: 1,
+  },
+  followButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  followingButtonText: {
+    color: '#7651e8',
+  },
+  followError: {
+    color: '#c0392b',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
   },
   stat: {
     alignItems: 'center',

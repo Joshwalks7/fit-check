@@ -3,9 +3,10 @@ import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView,
 import * as ImagePicker from 'expo-image-picker'
 import { createPost, fetchPosts } from '../services/posts.js'
 import { searchProfiles } from '../services/profile.js'
-import { followUser, getCurrentUser, isFollowing, unfollowUser } from '../services/follows.js'
+import { getCurrentUser } from '../services/follows.js'
 import { fetchCommentPreviews } from '../services/comments.js'
 import CommentSection from './CommentSection.jsx'
+import ProfileScreen from './ProfileScreen.jsx'
 
 function formatTimestamp(value) {
   const date = new Date(value)
@@ -214,8 +215,7 @@ function CommunityScreen() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
-  const [followStates, setFollowStates] = useState({})
-  const [followLoading, setFollowLoading] = useState({})
+  const [selectedProfile, setSelectedProfile] = useState(null)
   const { width } = useWindowDimensions()
   const columnCount = Math.max(2, Math.floor((width - SCREEN_PADDING * 2 + COLUMN_GAP) / (MIN_COLUMN_WIDTH + COLUMN_GAP)))
 
@@ -239,22 +239,6 @@ function CommunityScreen() {
     getCurrentUser().then((user) => setCurrentUserId(user.id)).catch(() => {})
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-
-    if (!searchResults.length) {
-      return () => { cancelled = true }
-    }
-
-    Promise.all(searchResults.map(async (profile) => [profile.id, await isFollowing(profile.id)]))
-      .then((entries) => {
-        if (!cancelled) setFollowStates(Object.fromEntries(entries))
-      })
-      .catch(() => {})
-
-    return () => { cancelled = true }
-  }, [searchResults])
-
   const refresh = async () => {
     setRefreshing(true)
     await loadPosts()
@@ -272,7 +256,6 @@ function CommunityScreen() {
     setSearching(true)
     setSearchError(null)
     try {
-      setFollowStates({})
       setSearchResults(await searchProfiles(normalizedQuery))
     } catch (err) {
       setSearchError(err.message)
@@ -292,20 +275,16 @@ function CommunityScreen() {
     return () => clearTimeout(timeout)
   }, [searchQuery, searchUsers])
 
-  const toggleFollow = async (profileId) => {
-    setFollowLoading((current) => ({ ...current, [profileId]: true }))
-    try {
-      if (followStates[profileId]) {
-        await unfollowUser(profileId)
-      } else {
-        await followUser(profileId)
-      }
-      setFollowStates((current) => ({ ...current, [profileId]: !current[profileId] }))
-    } catch (err) {
-      setSearchError(err.message)
-    } finally {
-      setFollowLoading((current) => ({ ...current, [profileId]: false }))
-    }
+  if (selectedProfile) {
+    return (
+      <ProfileScreen
+        key={selectedProfile.id}
+        isPublic
+        onBack={() => setSelectedProfile(null)}
+        profile={selectedProfile}
+        user={{ id: selectedProfile.id }}
+      />
+    )
   }
 
   return (
@@ -349,30 +328,23 @@ function CommunityScreen() {
             <Text style={styles.searchResultsTitle}>People</Text>
             {searchResults.map((result) => (
               <View key={result.id} style={styles.searchResult}>
-                {result.avatar_url ? (
-                  <Image source={{ uri: result.avatar_url }} style={styles.searchAvatar} />
-                ) : (
-                  <View style={styles.searchAvatar}><Text style={styles.avatarText}>{initials(result.full_name)}</Text></View>
-                )}
-                <Text numberOfLines={1} style={styles.searchName}>{result.full_name || 'Unnamed user'}</Text>
+                <Pressable
+                  accessibilityLabel={`Open ${result.full_name || 'user'} profile`}
+                  accessibilityRole={result.id === currentUserId ? undefined : 'button'}
+                  disabled={result.id === currentUserId}
+                  onPress={() => setSelectedProfile(result)}
+                  style={styles.searchProfileTarget}
+                >
+                  {result.avatar_url ? (
+                    <Image source={{ uri: result.avatar_url }} style={styles.searchAvatar} />
+                  ) : (
+                    <View style={styles.searchAvatar}><Text style={styles.avatarText}>{initials(result.full_name)}</Text></View>
+                  )}
+                  <Text numberOfLines={1} style={styles.searchName}>{result.full_name || 'Unnamed user'}</Text>
+                </Pressable>
                 {result.id === currentUserId ? (
                   <Text style={styles.youLabel}>You</Text>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={followLoading[result.id]}
-                    onPress={() => toggleFollow(result.id)}
-                    style={[styles.followButton, followStates[result.id] && styles.followingButton]}
-                  >
-                    {followLoading[result.id] ? (
-                      <ActivityIndicator color={followStates[result.id] ? '#7651e8' : '#fff'} size="small" />
-                    ) : (
-                      <Text style={[styles.followButtonText, followStates[result.id] && styles.followingButtonText]}>
-                        {followStates[result.id] ? 'Following' : 'Follow'}
-                      </Text>
-                    )}
-                  </Pressable>
-                )}
+                ) : null}
               </View>
             ))}
           </View>
@@ -441,12 +413,9 @@ const styles = StyleSheet.create({
   searchResults: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 12, borderWidth: 1, marginBottom: 16, padding: 10 },
   searchResultsTitle: { color: '#19171d', fontSize: 13, fontWeight: '700', marginBottom: 8 },
   searchResult: { alignItems: 'center', flexDirection: 'row', paddingVertical: 7 },
+  searchProfileTarget: { alignItems: 'center', flex: 1, flexDirection: 'row', minWidth: 0 },
   searchAvatar: { alignItems: 'center', backgroundColor: '#f7c2a1', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   searchName: { color: '#19171d', flex: 1, fontSize: 13, fontWeight: '600', marginLeft: 9 },
-  followButton: { alignItems: 'center', backgroundColor: '#7651e8', borderRadius: 8, justifyContent: 'center', minWidth: 78, paddingHorizontal: 10, paddingVertical: 7 },
-  followingButton: { backgroundColor: '#eee9ff', borderColor: '#d8cdfb', borderWidth: 1 },
-  followButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  followingButtonText: { color: '#7651e8' },
   youLabel: { color: '#756e7d', fontSize: 11, fontWeight: '600', paddingHorizontal: 10 },
   modalBackdrop: { alignItems: 'center', backgroundColor: '#19171d99', flex: 1, justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: '#fff', borderRadius: 20, maxWidth: 380, padding: 18, width: '100%' },
