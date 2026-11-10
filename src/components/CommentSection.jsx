@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { addComment, deleteComment, fetchComments } from '../services/comments.js'
+import { addComment, deleteComment, fetchComments, updateComment } from '../services/comments.js'
 import { getCurrentUser } from '../services/follows.js'
 
 const MAX_LENGTH = 500
@@ -21,13 +21,16 @@ function initials(name = '') {
   return name.split(/[\s@]/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('')
 }
 
-function CommentSection({ postId, onCommentsChange }) {
+function CommentSection({ postId, onCommentsChange, onOpenProfile }) {
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(true)
   const [body, setBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [editBody, setEditBody] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -66,6 +69,42 @@ function CommentSection({ postId, onCommentsChange }) {
     }
   }
 
+  const startEdit = (comment) => {
+    setError(null)
+    setEditingId(comment.id)
+    setEditBody(comment.body)
+  }
+
+  const cancelEdit = () => {
+    if (saving) return
+    setEditingId(null)
+    setEditBody('')
+  }
+
+  const saveEdit = async () => {
+    const text = editBody.trim()
+    if (!text || saving) return
+    const original = comments.find((comment) => comment.id === editingId)
+    if (text === original?.body) {
+      cancelEdit()
+      return
+    }
+    setError(null)
+    setSaving(true)
+    try {
+      const updated = await updateComment(editingId, text)
+      const next = comments.map((comment) => (comment.id === editingId ? { ...comment, body: updated.body } : comment))
+      setComments(next)
+      onCommentsChange?.(next)
+      setEditingId(null)
+      setEditBody('')
+    } catch (err) {
+      setError(`Could not edit comment: ${err.message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const remove = async (commentId) => {
     setError(null)
     try {
@@ -87,16 +126,33 @@ function CommentSection({ postId, onCommentsChange }) {
       ) : !comments.length ? (
         <Text style={styles.emptyText}>No comments yet. Start the conversation!</Text>
       ) : (
-        comments.map((comment) => (
+        comments.map((comment) => {
+          const canOpenProfile = !!onOpenProfile && !!comment.user_id && comment.user_id !== currentUserId
+          const openProfile = () => onOpenProfile({ id: comment.user_id, full_name: comment.author_name, avatar_url: comment.avatar_url })
+          return (
           <View key={comment.id} style={styles.comment}>
-            {comment.avatar_url ? (
-              <Image source={{ uri: comment.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatar}><Text style={styles.avatarText}>{initials(comment.author_name)}</Text></View>
-            )}
+            <Pressable
+              accessibilityLabel={`Open ${comment.author_name || 'user'} profile`}
+              accessibilityRole={canOpenProfile ? 'button' : undefined}
+              disabled={!canOpenProfile}
+              onPress={openProfile}
+            >
+              {comment.avatar_url ? (
+                <Image source={{ uri: comment.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatar}><Text style={styles.avatarText}>{initials(comment.author_name)}</Text></View>
+              )}
+            </Pressable>
             <View style={styles.commentContent}>
               <View style={styles.commentMeta}>
-                <Text numberOfLines={1} style={styles.authorName}>{comment.author_name}</Text>
+                <Pressable
+                  accessibilityRole={canOpenProfile ? 'button' : undefined}
+                  disabled={!canOpenProfile}
+                  onPress={openProfile}
+                  style={styles.authorNameTarget}
+                >
+                  <Text numberOfLines={1} style={styles.authorName}>{comment.author_name}</Text>
+                </Pressable>
                 <Text style={styles.timestamp}>{formatTimestamp(comment.created_at)}</Text>
                 {comment.user_id === currentUserId && (
                   <Pressable accessibilityLabel="Delete comment" accessibilityRole="button" onPress={() => remove(comment.id)}>
@@ -104,10 +160,41 @@ function CommentSection({ postId, onCommentsChange }) {
                   </Pressable>
                 )}
               </View>
-              <Text style={styles.body}>{comment.body}</Text>
+              {editingId === comment.id ? (
+                <View>
+                  <TextInput
+                    autoFocus
+                    maxLength={MAX_LENGTH}
+                    multiline
+                    onChangeText={setEditBody}
+                    style={[styles.input, styles.editInput]}
+                    value={editBody}
+                  />
+                  <View style={styles.editActions}>
+                    <Pressable accessibilityRole="button" disabled={saving} onPress={cancelEdit}>
+                      <Text style={styles.cancelText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!editBody.trim() || saving}
+                      onPress={saveEdit}
+                      style={[styles.saveButton, (!editBody.trim() || saving) && styles.disabled]}
+                    >
+                      {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveText}>Save</Text>}
+                    </Pressable>
+                  </View>
+                </View>
+              ) : comment.user_id === currentUserId ? (
+                <Pressable accessibilityHint="Tap to edit your comment" accessibilityRole="button" onPress={() => startEdit(comment)}>
+                  <Text style={styles.body}>{comment.body}</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.body}>{comment.body}</Text>
+              )}
             </View>
           </View>
-        ))
+          )
+        })
       )}
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -145,10 +232,16 @@ const styles = StyleSheet.create({
   avatarText: { color: '#4a2a20', fontSize: 10, fontWeight: '700' },
   commentContent: { flex: 1 },
   commentMeta: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  authorNameTarget: { flexShrink: 1 },
   authorName: { color: '#19171d', flexShrink: 1, fontSize: 12, fontWeight: '700' },
   timestamp: { color: '#756e7d', fontSize: 10 },
   deleteText: { color: '#c0392b', fontSize: 10, fontWeight: '600' },
   body: { color: '#19171d', fontSize: 13, lineHeight: 18, marginTop: 2 },
+  editInput: { flex: 0, fontSize: 13, marginTop: 4 },
+  editActions: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'flex-end', marginTop: 6 },
+  cancelText: { color: '#756e7d', fontSize: 12, fontWeight: '700' },
+  saveButton: { alignItems: 'center', backgroundColor: '#7651e8', borderRadius: 8, justifyContent: 'center', minHeight: 28, minWidth: 52, paddingHorizontal: 10 },
+  saveText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   errorText: { color: '#c0392b', fontSize: 12, marginTop: 8 },
   inputRow: { alignItems: 'flex-end', flexDirection: 'row', gap: 8, marginTop: 10 },
   input: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 9, borderWidth: 1, color: '#19171d', flex: 1, fontSize: 14, maxHeight: 100, paddingHorizontal: 11, paddingVertical: 9 },

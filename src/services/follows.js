@@ -62,3 +62,14 @@ export async function getFollowingCount(userId) {
   return count || 0
 }
 
+
+export async function getFollowingIds() {
+  const currentUser = await getCurrentUser()
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('following_id')
+    .eq('follower_id', currentUser.id)
+
+  if (error) throw error
+  return data.map((row) => row.following_id)
+}

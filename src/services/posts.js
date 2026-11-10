@@ -4,7 +4,6 @@ const TABLE = 'community_post';
 const PROFILE_TABLE = 'profiles';
 const BUCKET = 'post-images';
 
-// map a community_post row to the shape the UI uses
 function toPost(row, profileByUserId = {}) {
   return {
     id: row.id,
@@ -87,6 +86,38 @@ export async function createPost({ image, title, description }) {
     .single();
   if (error) throw error;
   return (await addProfileImages([data]))[0];
+}
+
+export async function updatePost(postId, { image, title, description }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('You must be signed in to edit a post.');
+
+  const changes = { title, description };
+  if (image) changes.image = await uploadImage(user.id, image);
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update(changes)
+    .eq('id', postId)
+    .eq('user_id', user.id)
+    .select();
+  if (error) throw error;
+  if (!data.length) throw new Error('Post was not updated. You may not have permission.');
+  return (await addProfileImages([data[0]]))[0];
+}
+
+export async function deletePost(postId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('You must be signed in to delete a post.');
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .delete()
+    .eq('id', postId)
+    .eq('user_id', user.id)
+    .select('id');
+  if (error) throw error;
+  if (!data.length) throw new Error('Post was not deleted. You may not have permission.');
 }
 
 export async function fetchFitOfTheDay() {
