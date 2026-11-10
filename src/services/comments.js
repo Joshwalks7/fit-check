@@ -70,3 +70,18 @@ export async function deleteComment(commentId) {
     .eq('id', commentId)
   if (error) throw error
 }
+
+export async function updateComment(commentId, body) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('You must be signed in to edit a comment.')
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ body })
+    .eq('id', commentId)
+    .eq('user_id', user.id)
+    .select()
+  if (error) throw error
+  if (!data.length) throw new Error('Comment was not updated. You may not have permission.')
+  return data[0]
+}

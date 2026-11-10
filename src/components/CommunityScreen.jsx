@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
-import { createPost, fetchPosts } from '../services/posts.js'
+import { createPost, deletePost, fetchPosts, updatePost } from '../services/posts.js'
 import { searchProfiles } from '../services/profile.js'
-import { getCurrentUser } from '../services/follows.js'
+import { getCurrentUser, getFollowingIds } from '../services/follows.js'
 import { fetchCommentPreviews } from '../services/comments.js'
 import CommentSection from './CommentSection.jsx'
 import ProfileScreen from './ProfileScreen.jsx'
@@ -28,6 +28,79 @@ const SCREEN_PADDING = 18
 const COLUMN_GAP = 10
 const MIN_COLUMN_WIDTH = 160
 
+const AUDIENCE_OPTIONS = [
+  { value: 'all', label: 'Everyone' },
+  { value: 'following', label: 'Following only' },
+]
+const DATE_OPTIONS = [
+  { value: 'any', label: 'Any time', ms: null },
+  { value: 'day', label: 'Past 24 hours', ms: 24 * 60 * 60 * 1000 },
+  { value: 'week', label: 'Past week', ms: 7 * 24 * 60 * 60 * 1000 },
+  { value: 'month', label: 'Past month', ms: 30 * 24 * 60 * 60 * 1000 },
+]
+const DEFAULT_FILTERS = { audience: 'all', date: 'any' }
+
+function activeFilterCount(filters) {
+  return Object.keys(DEFAULT_FILTERS).filter((key) => filters[key] !== DEFAULT_FILTERS[key]).length
+}
+
+function applyFilters(posts, filters, followingIds) {
+  const cutoffMs = DATE_OPTIONS.find((option) => option.value === filters.date)?.ms
+  const since = cutoffMs ? Date.now() - cutoffMs : null
+  const following = new Set(followingIds)
+  return posts.filter((post) => (
+    (filters.audience !== 'following' || following.has(post.user_id))
+    && (!since || new Date(post.created_at).getTime() >= since)
+  ))
+}
+
+function OptionGroup({ label, options, value, onChange }) {
+  return (
+    <>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.chipRow}>
+        {options.map((option) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: value === option.value }}
+            key={option.value}
+            onPress={() => onChange(option.value)}
+            style={[styles.chip, value === option.value && styles.chipActive]}
+          >
+            <Text style={[styles.chipText, value === option.value && styles.chipTextActive]}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </>
+  )
+}
+
+function FilterModal({ visible, filters, onClose, onApply }) {
+  const [draft, setDraft] = useState(filters)
+  const set = (key) => (value) => setDraft((current) => ({ ...current, [key]: value }))
+
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <View style={styles.commentsHeader}>
+            <Text style={styles.commentsTitle}>Filter posts</Text>
+            <Pressable accessibilityLabel="Close filters" accessibilityRole="button" onPress={onClose}>
+              <Text style={styles.closeText}>×</Text>
+            </Pressable>
+          </View>
+          <OptionGroup label="Show" options={AUDIENCE_OPTIONS} value={draft.audience} onChange={set('audience')} />
+          <OptionGroup label="Posted" options={DATE_OPTIONS} value={draft.date} onChange={set('date')} />
+          <View style={styles.modalActions}>
+            <Pressable onPress={() => setDraft(DEFAULT_FILTERS)} style={styles.cancelButton}><Text style={styles.cancelText}>Reset</Text></Pressable>
+            <Pressable onPress={() => onApply(draft)} style={styles.postButton}><Text style={styles.postText}>Apply</Text></Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
 // deal posts left to right into columns so the newest stay on top
 function toColumns(posts, count) {
   const columns = Array.from({ length: count }, () => [])
@@ -48,7 +121,7 @@ function PostImage({ uri }) {
   return <Image source={{ uri }} style={[styles.cardImage, { aspectRatio }]} resizeMode="contain" />
 }
 
-function CommentsModal({ post, onClose, onCommentsChange }) {
+function CommentsModal({ post, onClose, onCommentsChange, onOpenProfile }) {
   return (
     <Modal animationType="fade" transparent visible={!!post} onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
@@ -60,7 +133,7 @@ function CommentsModal({ post, onClose, onCommentsChange }) {
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {post && <CommentSection postId={post.id} onCommentsChange={onCommentsChange} />}
+            {post && <CommentSection postId={post.id} onCommentsChange={onCommentsChange} onOpenProfile={onOpenProfile} />}
           </ScrollView>
         </View>
       </View>
@@ -68,19 +141,33 @@ function CommentsModal({ post, onClose, onCommentsChange }) {
   )
 }
 
-function PostCard({ post, onCommentsChange }) {
+function PostCard({ post, isOwner, onCommentsChange, onEdit, onDelete, onOpenProfile }) {
   const [showComments, setShowComments] = useState(false)
   const previewComments = post.comments || []
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        {post.avatar_url ? (
-          <Image source={{ uri: post.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatar}><Text style={styles.avatarText}>{initials(post.author_name)}</Text></View>
-        )}
+        <Pressable
+          accessibilityLabel={`Open ${post.author_name || 'user'} profile`}
+          accessibilityRole={isOwner ? undefined : 'button'}
+          disabled={isOwner || !post.user_id}
+          onPress={() => onOpenProfile({ id: post.user_id, full_name: post.author_name, avatar_url: post.avatar_url })}
+        >
+          {post.avatar_url ? (
+            <Image source={{ uri: post.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatar}><Text style={styles.avatarText}>{initials(post.author_name)}</Text></View>
+          )}
+        </Pressable>
         <View style={styles.authorInfo}>
-          <Text numberOfLines={1} style={styles.authorName}>{post.author_name}</Text>
+          <Pressable
+            accessibilityRole={isOwner ? undefined : 'button'}
+            disabled={isOwner || !post.user_id}
+            onPress={() => onOpenProfile({ id: post.user_id, full_name: post.author_name, avatar_url: post.avatar_url })}
+            style={styles.authorNameTarget}
+          >
+            <Text numberOfLines={1} style={styles.authorName}>{post.author_name}</Text>
+          </Pressable>
           <Text style={styles.timestamp}>{formatTimestamp(post.created_at)}</Text>
         </View>
       </View>
@@ -98,25 +185,85 @@ function PostCard({ post, onCommentsChange }) {
             ))}
           </View>
         )}
-        <Pressable accessibilityRole="button" onPress={() => setShowComments(true)} style={styles.commentButton}>
-          <Text style={styles.commentText}>Comment</Text>
-        </Pressable>
+        <View style={styles.cardActions}>
+          <Pressable accessibilityRole="button" onPress={() => setShowComments(true)} style={styles.commentButton}>
+            <Text style={styles.commentText}>Comment</Text>
+          </Pressable>
+          {isOwner && (
+            <View style={styles.ownerActions}>
+              <Pressable accessibilityLabel="Edit post" accessibilityRole="button" onPress={() => onEdit(post)} style={styles.smallButton}>
+                <Text style={styles.editText}>Edit</Text>
+              </Pressable>
+              <Pressable accessibilityLabel="Delete post" accessibilityRole="button" onPress={() => onDelete(post)} style={[styles.smallButton, styles.deleteButton]}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
       </View>
       <CommentsModal
         post={showComments ? post : null}
         onClose={() => setShowComments(false)}
         onCommentsChange={(comments) => onCommentsChange(post.id, comments.slice(-2))}
+        onOpenProfile={(profile) => {
+          setShowComments(false)
+          onOpenProfile(profile)
+        }}
       />
     </View>
   )
 }
 
-function CreatePostModal({ visible, onClose, onCreated }) {
+function DeletePostModal({ post, onClose, onDeleted }) {
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState(null)
+
+  const close = () => {
+    if (deleting) return
+    setError(null)
+    onClose()
+  }
+
+  const confirm = async () => {
+    setError(null)
+    setDeleting(true)
+    try {
+      await deletePost(post.id)
+      onDeleted(post.id)
+      onClose()
+    } catch (err) {
+      setError(`Could not delete post: ${err.message}`)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={!!post} onRequestClose={close}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Delete post?</Text>
+          <Text style={styles.cardDescription}>"{post?.title}" will be removed for everyone. This can't be undone.</Text>
+          {!!error && <Text style={styles.errorText}>{error}</Text>}
+          <View style={styles.modalActions}>
+            <Pressable onPress={close} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel</Text></Pressable>
+            <Pressable disabled={deleting} onPress={confirm} style={[styles.postButton, styles.confirmDelete, deleting && styles.disabled]}>
+              {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.postText}>Delete</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+function PostModal({ visible, post, onClose, onSaved }) {
   const [image, setImage] = useState(null)
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
+  const [title, setTitle] = useState(post?.title || '')
+  const [description, setDescription] = useState(post?.description || '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const editing = !!post
 
   const reset = () => {
     setError(null)
@@ -149,12 +296,13 @@ function CreatePostModal({ visible, onClose, onCreated }) {
     setError(null)
     setSubmitting(true)
     try {
-      const post = await createPost({ image, title: title.trim(), description: description.trim() })
-      onCreated(post)
+      const fields = { image, title: title.trim(), description: description.trim() }
+      const saved = editing ? await updatePost(post.id, fields) : await createPost(fields)
+      onSaved(saved)
       reset()
       onClose()
     } catch (err) {
-      setError(`Could not create post: ${err.message}`)
+      setError(`Could not ${editing ? 'update' : 'create'} post: ${err.message}`)
     } finally {
       setSubmitting(false)
     }
@@ -164,11 +312,11 @@ function CreatePostModal({ visible, onClose, onCreated }) {
     <Modal animationType="fade" transparent visible={visible} onRequestClose={close}>
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Create post</Text>
+          <Text style={styles.modalTitle}>{editing ? 'Edit post' : 'Create post'}</Text>
 
           <Pressable accessibilityRole="button" onPress={pickImage} style={styles.imagePicker}>
-            {image ? (
-              <Image source={{ uri: image.uri }} style={styles.imagePreview} resizeMode="cover" />
+            {image || post?.image_url ? (
+              <Image source={{ uri: image?.uri || post.image_url }} style={styles.imagePreview} resizeMode="cover" />
             ) : (
               <>
                 <Text style={styles.pickerPlus}>＋</Text>
@@ -195,7 +343,7 @@ function CreatePostModal({ visible, onClose, onCreated }) {
           <View style={styles.modalActions}>
             <Pressable onPress={close} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel</Text></Pressable>
             <Pressable disabled={submitting} onPress={submit} style={[styles.postButton, submitting && styles.disabled]}>
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.postText}>Post</Text>}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.postText}>{editing ? 'Save' : 'Post'}</Text>}
             </Pressable>
           </View>
         </View>
@@ -216,6 +364,12 @@ function CommunityScreen() {
   const [searchError, setSearchError] = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [selectedProfile, setSelectedProfile] = useState(null)
+  const [editingPost, setEditingPost] = useState(null)
+  const [deletingPost, setDeletingPost] = useState(null)
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  const [showFilters, setShowFilters] = useState(false)
+  const [followingIds, setFollowingIds] = useState([])
+  const [followingError, setFollowingError] = useState(null)
   const { width } = useWindowDimensions()
   const columnCount = Math.max(2, Math.floor((width - SCREEN_PADDING * 2 + COLUMN_GAP) / (MIN_COLUMN_WIDTH + COLUMN_GAP)))
 
@@ -239,11 +393,28 @@ function CommunityScreen() {
     getCurrentUser().then((user) => setCurrentUserId(user.id)).catch(() => {})
   }, [])
 
+  // follows can change on profile screens, so reload them each time the filter needs them
+  const loadFollowing = useCallback(() => getFollowingIds()
+    .then((ids) => {
+      setFollowingIds(ids)
+      setFollowingError(null)
+    })
+    .catch((err) => setFollowingError(err.message)), [])
+
+  const applyFilterChoice = (next) => {
+    setFilters(next)
+    setShowFilters(false)
+    if (next.audience === 'following') loadFollowing()
+  }
+
   const refresh = async () => {
     setRefreshing(true)
-    await loadPosts()
+    await Promise.all([loadPosts(), filters.audience === 'following' ? loadFollowing() : null])
     setRefreshing(false)
   }
+
+  const filterCount = activeFilterCount(filters)
+  const visiblePosts = applyFilters(posts, filters, followingIds)
 
   const searchUsers = useCallback(async (query) => {
     const normalizedQuery = query.trim()
@@ -317,7 +488,20 @@ function CommunityScreen() {
           <Pressable accessibilityRole="button" onPress={() => searchUsers(searchQuery)} style={styles.searchButton}>
             <Text style={styles.searchButtonText}>Search</Text>
           </Pressable>
+          <Pressable
+            accessibilityLabel={filterCount ? `Filter, ${filterCount} active` : 'Filter'}
+            accessibilityRole="button"
+            onPress={() => setShowFilters(true)}
+            style={[styles.searchButton, filterCount > 0 && styles.filterButtonActive]}
+          >
+            <Text style={[styles.searchButtonText, filterCount > 0 && styles.filterButtonTextActive]}>
+              Filter{filterCount ? ` · ${filterCount}` : ''}
+            </Text>
+          </Pressable>
         </View>
+        {!!followingError && filters.audience === 'following' && (
+          <Text style={styles.searchError}>Couldn't load who you follow: {followingError}</Text>
+        )}
         {searching && <ActivityIndicator color="#7651e8" style={styles.searchLoader} />}
         {!!searchError && <Text style={styles.searchError}>{searchError}</Text>}
         {!searching && searchQuery.trim() && !searchError && !searchResults.length && (
@@ -349,22 +533,69 @@ function CommunityScreen() {
             ))}
           </View>
         )}
-        {posts.length ? (
+        {visiblePosts.length ? (
           <View style={styles.grid}>
-            {toColumns(posts, columnCount).map((column, index) => (
+            {toColumns(visiblePosts, columnCount).map((column, index) => (
               <View key={index} style={styles.column}>
-                {column.map((post) => <PostCard key={post.id} post={post} onCommentsChange={updatePostComments} />)}
+                {column.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    isOwner={!!currentUserId && post.user_id === currentUserId}
+                    onCommentsChange={updatePostComments}
+                    onEdit={setEditingPost}
+                    onDelete={setDeletingPost}
+                    onOpenProfile={setSelectedProfile}
+                  />
+                ))}
               </View>
             ))}
           </View>
         ) : loading
           ? <ActivityIndicator color="#7651e8" style={styles.loader} />
-          : <Text style={styles.emptyText}>{error ? `Couldn't load posts: ${error}` : 'No posts yet. Be the first to share a fit!'}</Text>}
+          : (
+            <View>
+              <Text style={styles.emptyText}>
+                {error
+                  ? `Couldn't load posts: ${error}`
+                  : posts.length ? 'No posts match these filters.' : 'No posts yet. Be the first to share a fit!'}
+              </Text>
+              {!error && posts.length > 0 && (
+                <Pressable accessibilityRole="button" onPress={() => setFilters(DEFAULT_FILTERS)} style={styles.clearFilters}>
+                  <Text style={styles.searchButtonText}>Clear filters</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
       </ScrollView>
-      <CreatePostModal
+      <PostModal
         visible={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={(post) => setPosts((current) => [post, ...current])}
+        onSaved={(post) => setPosts((current) => [post, ...current])}
+      />
+      {editingPost && (
+        <PostModal
+          key={editingPost.id}
+          visible
+          post={editingPost}
+          onClose={() => setEditingPost(null)}
+          onSaved={(saved) => setPosts((current) => current.map((post) => (
+            post.id === saved.id ? { ...saved, comments: post.comments } : post
+          )))}
+        />
+      )}
+      {showFilters && (
+        <FilterModal
+          visible
+          filters={filters}
+          onClose={() => setShowFilters(false)}
+          onApply={applyFilterChoice}
+        />
+      )}
+      <DeletePostModal
+        post={deletingPost}
+        onClose={() => setDeletingPost(null)}
+        onDeleted={(postId) => setPosts((current) => current.filter((post) => post.id !== postId))}
       />
     </View>
   )
@@ -387,13 +618,21 @@ const styles = StyleSheet.create({
   avatar: { alignItems: 'center', backgroundColor: '#f7c2a1', borderRadius: 11, height: 22, justifyContent: 'center', width: 22 },
   avatarText: { color: '#4a2a20', fontSize: 8, fontWeight: '700' },
   authorInfo: { flex: 1 },
+  authorNameTarget: { alignSelf: 'flex-start', maxWidth: '100%' },
   authorName: { color: '#19171d', fontSize: 11, fontWeight: '700' },
   timestamp: { color: '#756e7d', fontSize: 9, marginTop: 1 },
   cardImage: { backgroundColor: '#ded3fb', width: '100%' },
   cardBody: { paddingHorizontal: 8, paddingVertical: 8 },
   cardTitle: { color: '#19171d', fontSize: 13, fontWeight: '700' },
   cardDescription: { color: '#19171d', fontSize: 11, lineHeight: 15, marginTop: 3 },
-  commentButton: { alignSelf: 'flex-start', backgroundColor: '#eee9ff', borderRadius: 8, marginTop: 7, paddingHorizontal: 8, paddingVertical: 5 },
+  cardActions: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: 7 },
+  commentButton: { backgroundColor: '#eee9ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
+  ownerActions: { flexDirection: 'row', gap: 4 },
+  smallButton: { backgroundColor: '#f0eef2', borderRadius: 7, paddingHorizontal: 6, paddingVertical: 4 },
+  editText: { color: '#756e7d', fontSize: 9, fontWeight: '700' },
+  deleteButton: { backgroundColor: '#fdecea' },
+  deleteText: { color: '#c0392b', fontSize: 9, fontWeight: '700' },
+  confirmDelete: { backgroundColor: '#c0392b' },
   commentText: { color: '#7651e8', fontSize: 10, fontWeight: '700' },
   commentPreview: { borderTopColor: '#f0ecf3', borderTopWidth: 1, gap: 3, marginTop: 7, paddingTop: 6 },
   previewText: { color: '#19171d', fontSize: 10, lineHeight: 14 },
@@ -417,6 +656,14 @@ const styles = StyleSheet.create({
   searchAvatar: { alignItems: 'center', backgroundColor: '#f7c2a1', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   searchName: { color: '#19171d', flex: 1, fontSize: 13, fontWeight: '600', marginLeft: 9 },
   youLabel: { color: '#756e7d', fontSize: 11, fontWeight: '600', paddingHorizontal: 10 },
+  filterButtonActive: { backgroundColor: '#7651e8' },
+  filterButtonTextActive: { color: '#fff' },
+  clearFilters: { alignSelf: 'center', backgroundColor: '#eee9ff', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: { backgroundColor: '#f0eef2', borderRadius: 16, paddingHorizontal: 11, paddingVertical: 6 },
+  chipActive: { backgroundColor: '#7651e8' },
+  chipText: { color: '#756e7d', fontSize: 12, fontWeight: '600' },
+  chipTextActive: { color: '#fff' },
   modalBackdrop: { alignItems: 'center', backgroundColor: '#19171d99', flex: 1, justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: '#fff', borderRadius: 20, maxWidth: 380, padding: 18, width: '100%' },
   modalTitle: { color: '#19171d', fontSize: 18, fontWeight: '700', marginBottom: 14 },
