@@ -1,30 +1,28 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native'
-import { fetchFitOfTheDay } from '../services/posts.js'
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native'
+import { fetchTodaysOutfit } from '../services/outfits.js'
 
-function initials(name = '') {
-  return name
-    .split(/[\s@]/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join('')
+function todayKey() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-function FitOfTheDayCard() {
-  const [post, setPost] = useState(null)
+function TodayFitCard({ onRecordToday, onRecordPast }) {
+  const [outfit, setOutfit] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
-
-    fetchFitOfTheDay()
+    fetchTodaysOutfit(todayKey())
       .then((data) => {
-        if (!cancelled) setPost(data)
+        if (!cancelled) setOutfit(data)
       })
-      .catch((err) => {
-        if (!cancelled) setError(err.message)
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError.message)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -35,56 +33,58 @@ function FitOfTheDayCard() {
 
   return (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.label}>Fit of the day</Text>
-      </View>
-
+      <Text style={styles.label}>Today's fit</Text>
       {loading ? (
         <ActivityIndicator color="#7651e8" style={styles.loader} />
       ) : error ? (
-        <Text style={styles.empty}>Couldn’t load today’s fit.</Text>
-      ) : !post ? (
-        <Text style={styles.empty}>No fits posted yet today. Be the first!</Text>
-      ) : (
-        <View style={styles.body}>
-          {post.image_url ? (
-            <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />
-          ) : (
-            <View style={styles.image} />
-          )}
+        <View>
+          <Text style={styles.empty}>We couldn't load today's fit.</Text>
+          <Pressable accessibilityRole="button" onPress={onRecordToday} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Record today's fit</Text>
+          </Pressable>
+        </View>
+      ) : outfit ? (
+        <View style={styles.recordedContent}>
+          {outfit.imageUrl ? <Image source={{ uri: outfit.imageUrl }} style={styles.image} resizeMode="cover" /> : <View style={styles.image} />}
           <View style={styles.info}>
-            <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
-            {!!post.description && <Text style={styles.description} numberOfLines={3}>{post.description}</Text>}
-            <View style={styles.author}>
-              {post.avatar_url ? (
-                <Image source={{ uri: post.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatar}><Text style={styles.avatarText}>{initials(post.author_name)}</Text></View>
-              )}
-              <Text style={styles.meta} numberOfLines={1}>{post.author_name}</Text>
-            </View>
+            <Text style={styles.title} numberOfLines={2}>{outfit.title || 'Outfit recorded'}</Text>
+            {!!outfit.items?.length && <Text style={styles.items} numberOfLines={2}>{outfit.items.map((item) => item.name).join(', ')}</Text>}
+            {!!outfit.notes && <Text style={styles.description} numberOfLines={2}>{outfit.notes}</Text>}
           </View>
         </View>
+      ) : (
+        <View>
+          <Text style={styles.empty}>What are you wearing today?</Text>
+          <Text style={styles.prompt}>Save your fit and keep your closet rotation moving.</Text>
+          <Pressable accessibilityRole="button" onPress={onRecordToday} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Record today's fit</Text>
+          </Pressable>
+        </View>
       )}
+
+      <Pressable accessibilityRole="button" onPress={onRecordPast} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Record a past outfit</Text>
+      </Pressable>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 16, borderWidth: 1, marginHorizontal: 18, marginTop: 22, padding: 16 },
-  cardHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   label: { color: '#7651e8', fontSize: 12, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
   loader: { marginVertical: 24 },
-  empty: { color: '#756e7d', fontSize: 13, paddingVertical: 12, textAlign: 'center' },
-  body: { flexDirection: 'row', gap: 14 },
-  image: { backgroundColor: '#f2eff5', borderColor: '#e7e2eb', borderRadius: 12, borderWidth: 1, height: 72, width: 72 },
-  info: { flex: 1 },
-  title: { color: '#19171d', fontSize: 16, fontWeight: '600' },
-  description: { color: '#19171d', fontSize: 13, lineHeight: 18, marginTop: 4 },
-  author: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: 8 },
-  avatar: { alignItems: 'center', backgroundColor: '#f7c2a1', borderRadius: 11, height: 22, justifyContent: 'center', width: 22 },
-  avatarText: { color: '#4a2a20', fontSize: 9, fontWeight: '700' },
-  meta: { color: '#756e7d', flex: 1, fontSize: 12 },
+  empty: { color: '#19171d', fontSize: 17, fontWeight: '600', marginTop: 14 },
+  prompt: { color: '#756e7d', fontSize: 13, lineHeight: 18, marginTop: 5 },
+  recordedContent: { flexDirection: 'row', gap: 14, marginTop: 14 },
+  image: { backgroundColor: '#f2eff5', borderColor: '#e7e2eb', borderRadius: 12, borderWidth: 1, height: 110, width: 110 },
+  info: { flex: 1, justifyContent: 'center' },
+  title: { color: '#19171d', fontSize: 17, fontWeight: '600' },
+  items: { color: '#7651e8', fontSize: 12, marginTop: 7 },
+  description: { color: '#756e7d', fontSize: 13, lineHeight: 18, marginTop: 6 },
+  primaryButton: { alignItems: 'center', backgroundColor: '#7651e8', borderRadius: 11, marginTop: 14, paddingVertical: 11 },
+  primaryButtonText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  secondaryButton: { alignItems: 'center', borderColor: '#e7e2eb', borderRadius: 11, borderWidth: 1, marginTop: 10, paddingVertical: 10 },
+  secondaryButtonText: { color: '#19171d', fontSize: 13, fontWeight: '600' },
 })
 
-export default FitOfTheDayCard
+export default TodayFitCard

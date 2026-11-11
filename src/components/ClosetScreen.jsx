@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Image, Modal, RefreshControl, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
-import { supabase } from '../lib/supabase.js'
+import { fetchClosetItemsWithWearStats } from '../services/closet.js'
 
 const categories = ['Hats', 'Accessories', 'Shirts', 'Pants', 'Shoes', 'Outerwear']
 
@@ -11,54 +11,13 @@ const formatTags = values => Array.isArray(values) && values.length
   : 'Not specified'
 
 async function loadClosetItems() {
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError) throw userError
-  if (!user) throw new Error('Please sign in to view your closet.')
-
-  // Page through all owned items instead of stopping at the API row limit.
-  const rows = []
-  const pageSize = 500
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
-      .from('clothing_items')
-      .select('id, name, description, category, color, brand, size, seasons, styles, clothing_item_images(file_path)')
-      .eq('user_id', user.id)
-      .order('id', { ascending: true })
-      .range(offset, offset + pageSize - 1)
-    if (error) throw error
-    rows.push(...(data || []))
-    if (!data || data.length < pageSize) break
-  }
-
-  const paths = [...new Set(rows.flatMap(row =>
-    (row.clothing_item_images || []).map(image => image.file_path).filter(Boolean)))]
-  const imageUrls = new Map()
-  let photoWarning = ''
-
-  if (paths.length) {
-    try {
-      // Signed URLs work for private buckets without making photos public.
-      const { data, error } = await supabase.storage
-        .from('Clothing_item_pics')
-        .createSignedUrls(paths, 3600)
-      if (error) throw error
-      for (const image of data || []) {
-        if (image.path && image.signedUrl && !image.error) imageUrls.set(image.path, image.signedUrl)
-      }
-      if (imageUrls.size < paths.length) photoWarning = 'Some photos could not be loaded. Refresh to try again.'
-    } catch (error) {
-      console.warn('Closet photo loading failed:', error)
-      photoWarning = 'Your items loaded, but their photos could not be loaded. Refresh to try again.'
-    }
-  }
+  const items = await fetchClosetItemsWithWearStats()
+  const photoWarning = items.some((item) => item.clothing_item_images?.length && !item.imageUrl)
+    ? 'Some photos could not be loaded. Refresh to try again.'
+    : ''
 
   return {
-    items: rows.map(row => ({
-      ...row,
-      category: categoryLabel(row.category),
-      imageUrl: (row.clothing_item_images || [])
-        .map(image => imageUrls.get(image.file_path)).find(Boolean) || null,
-    })),
+    items: items.map(item => ({ ...item, category: categoryLabel(item.category) })),
     photoWarning,
   }
 }
@@ -220,7 +179,7 @@ function ClosetScreen({ onAddItem }) {
 function ItemPhoto({ uri, name }) {
   const [failed, setFailed] = useState(false)
   return uri && !failed ? (
-    <Image accessibilityLabel={name || 'Clothing photo'} source={{ uri }} style={styles.photo} resizeMode="cover" onError={() => setFailed(true)} />
+    <Image accessibilityLabel={name || 'Clothing photo'} source={{ uri }} style={styles.photo} resizeMode="contain" onError={() => setFailed(true)} />
   ) : <Text style={styles.emptyText}>{uri ? 'Photo unavailable' : 'No photo'}</Text>
 }
 
@@ -228,6 +187,9 @@ function ItemDetails({ item, onClose }) {
   const facts = [
     ['Category', item.category], ['Color', item.color], ['Brand', item.brand],
     ['Size', item.size], ['Seasons', formatTags(item.seasons)], ['Styles', formatTags(item.styles)],
+    ['Times worn', `${item.wearCount} ${item.wearCount === 1 ? 'time' : 'times'}`],
+    ['Last worn', item.lastWorn || 'Never worn'],
+    ['Days since worn', item.daysSinceWorn === null ? 'Not worn yet' : `${item.daysSinceWorn} days`],
   ]
   return (
     <View style={styles.detailCard}>

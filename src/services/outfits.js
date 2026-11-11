@@ -1,21 +1,48 @@
 import { supabase } from '../lib/supabase.js'
+import { getFirstClothingImageUrl, getSignedClothingImageUrls } from './clothingImages.js'
 
 const OUTFIT_BUCKET = 'outfit-images'
 
-async function getSignedImageUrls(paths) {
-  if (!paths.length) return new Map()
+async function getSignedOutfitImageUrl(path) {
+  if (!path) return null
 
   const { data, error } = await supabase.storage
-    .from('Clothing_item_pics')
-    .createSignedUrls(paths, 3600)
+    .from(OUTFIT_BUCKET)
+    .createSignedUrl(path, 3600)
 
   if (error) throw error
+  return data?.signedUrl || null
+}
 
-  return new Map(
-    (data || [])
-      .filter((image) => image.path && image.signedUrl && !image.error)
-      .map((image) => [image.path, image.signedUrl]),
-  )
+export async function fetchTodaysOutfit(dateKey) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError) throw userError
+  if (!user) throw new Error('Please sign in to view today\'s fit.')
+
+  const { data, error } = await supabase
+    .from('outfits')
+    .select('id, photo_path, worn_on, title, notes, created_at')
+    .eq('user_id', user.id)
+    .eq('worn_on', dateKey)
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (error) throw error
+  const outfit = data?.[0]
+  if (!outfit) return null
+
+  const { data: outfitItems, error: itemsError } = await supabase
+    .from('outfit_items')
+    .select('clothing_item_id, clothing_items(name, category)')
+    .eq('outfit_id', outfit.id)
+
+  if (itemsError) throw itemsError
+
+  return {
+    ...outfit,
+    imageUrl: await getSignedOutfitImageUrl(outfit.photo_path),
+    items: (outfitItems || []).map((item) => item.clothing_items).filter(Boolean),
+  }
 }
 
 export async function fetchClosetItemsForOutfit() {
@@ -35,13 +62,11 @@ export async function fetchClosetItemsForOutfit() {
   const paths = [...new Set(rows.flatMap((item) => (
     item.clothing_item_images || []
   ).map((image) => image.file_path).filter(Boolean)))]
-  const imageUrls = await getSignedImageUrls(paths)
+  const imageUrls = await getSignedClothingImageUrls(paths)
 
   return rows.map((item) => ({
     ...item,
-    imageUrl: (item.clothing_item_images || [])
-      .map((image) => imageUrls.get(image.file_path))
-      .find(Boolean) || null,
+    imageUrl: getFirstClothingImageUrl(item.clothing_item_images, imageUrls),
   }))
 }
 
