@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { createOutfit, fetchClosetItemsForOutfit } from '../services/outfits.js'
+import { createPost } from '../services/posts.js'
 
 function todayKey() {
   const date = new Date()
@@ -17,16 +18,17 @@ function formatCategory(value) {
     : 'Uncategorized'
 }
 
-function DocumentOutfitScreen({ onBack }) {
+function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBack }) {
   const [image, setImage] = useState(null)
   const [closetItems, setClosetItems] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
-  const [wornOn, setWornOn] = useState(todayKey)
+  const [wornOn, setWornOn] = useState(initialWornOn === null ? todayKey() : initialWornOn)
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [loadingItems, setLoadingItems] = useState(true)
   const [itemsError, setItemsError] = useState(null)
   const [showPhotoOptions, setShowPhotoOptions] = useState(false)
+  const [showShareConfirmation, setShowShareConfirmation] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
 
@@ -47,7 +49,12 @@ function DocumentOutfitScreen({ onBack }) {
 
     fetchClosetItemsForOutfit()
       .then((items) => {
-        if (active) setClosetItems(items)
+        if (active) {
+          setClosetItems(items)
+          if (initialItemId && items.some((item) => item.id === initialItemId)) {
+            setSelectedIds([initialItemId])
+          }
+        }
       })
       .catch((error) => {
         if (active) setItemsError(error.message)
@@ -57,7 +64,7 @@ function DocumentOutfitScreen({ onBack }) {
       })
 
     return () => { active = false }
-  }, [])
+  }, [initialItemId])
 
   const pickImage = async (source) => {
     if (source === 'camera') {
@@ -88,7 +95,7 @@ function DocumentOutfitScreen({ onBack }) {
       : [...current, itemId])
   }
 
-  const save = async () => {
+  const save = async (shareToCommunity = false) => {
     setSaveError(null)
     if (!image) {
       setSaveError('Add a photo of your outfit before saving.')
@@ -112,6 +119,19 @@ function DocumentOutfitScreen({ onBack }) {
         notes,
         clothingItemIds: selectedIds,
       })
+      if (shareToCommunity) {
+        try {
+          await createPost({
+            image,
+            title: title.trim() || "Today's fit",
+            description: notes.trim() || 'Shared from my recorded outfit.',
+          })
+        } catch (postError) {
+          Alert.alert('Outfit saved, post not shared', postError.message)
+          onBack()
+          return
+        }
+      }
       Alert.alert('Outfit saved', 'Your outfit and worn items were documented.')
       onBack()
     } catch (error) {
@@ -120,6 +140,12 @@ function DocumentOutfitScreen({ onBack }) {
       setSaving(false)
     }
   }
+
+  const shareToday = () => {
+    setShowShareConfirmation(true)
+  }
+
+  const isToday = wornOn === todayKey()
 
   return (
     <SafeAreaView style={styles.container}>
@@ -196,7 +222,7 @@ function DocumentOutfitScreen({ onBack }) {
                   style={[styles.itemCard, selected && styles.selectedItemCard]}
                 >
                   <View style={styles.itemImage}>
-                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.itemPhoto} resizeMode="cover" /> : <Text style={styles.noPhoto}>No photo</Text>}
+                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.itemPhoto} resizeMode="contain" /> : <Text style={styles.noPhoto}>No photo</Text>}
                     {selected && <View style={styles.selectedBadge}><Text style={styles.selectedBadgeText}>✓</Text></View>}
                   </View>
                   <Text numberOfLines={1} style={styles.itemName}>{item.name || 'Unnamed item'}</Text>
@@ -208,6 +234,11 @@ function DocumentOutfitScreen({ onBack }) {
         ) : null}
 
         {!!saveError && <Text style={styles.errorText}>{saveError}</Text>}
+        {isToday ? (
+          <Pressable accessibilityRole="button" disabled={saving || loadingItems} onPress={shareToday} style={[styles.shareButton, (saving || loadingItems) && styles.disabledButton]}>
+            <Text style={styles.shareButtonText}>Save & share to community</Text>
+          </Pressable>
+        ) : null}
         <Pressable accessibilityRole="button" disabled={saving || loadingItems} onPress={save} style={[styles.saveButton, (saving || loadingItems) && styles.disabledButton]}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save outfit</Text>}
         </Pressable>
@@ -220,6 +251,21 @@ function DocumentOutfitScreen({ onBack }) {
             <Pressable onPress={() => pickImage('camera')} style={styles.photoOption}><Text style={styles.photoOptionText}>Take a photo</Text></Pressable>
             <Pressable onPress={() => pickImage('library')} style={styles.photoOption}><Text style={styles.photoOptionText}>Choose from photo library</Text></Pressable>
             <Pressable onPress={() => setShowPhotoOptions(false)} style={styles.cancelOption}><Text style={styles.cancelText}>Cancel</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal animationType="fade" onRequestClose={() => setShowShareConfirmation(false)} transparent visible={showShareConfirmation}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmationCard}>
+            <Text style={styles.modalTitle}>Share today's fit?</Text>
+            <Text style={styles.confirmationText}>Your outfit photo and notes will be posted to the community.</Text>
+            <Pressable onPress={() => { setShowShareConfirmation(false); save(true) }} style={styles.confirmShareButton}>
+              <Text style={styles.confirmShareText}>Share to community</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowShareConfirmation(false)} style={styles.cancelOption}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -267,10 +313,16 @@ const styles = StyleSheet.create({
   itemMeta: { color: '#756e7d', fontSize: 10, marginTop: 2 },
   errorText: { color: '#c0392b', fontSize: 12, marginTop: 14 },
   saveButton: { alignItems: 'center', backgroundColor: '#7651e8', borderRadius: 11, marginTop: 24, paddingVertical: 13 },
+  shareButton: { alignItems: 'center', borderColor: '#7651e8', borderRadius: 11, borderWidth: 1, marginTop: 12, paddingVertical: 12 },
   disabledButton: { opacity: 0.6 },
   saveButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  shareButtonText: { color: '#7651e8', fontSize: 14, fontWeight: '700' },
   modalBackdrop: { alignItems: 'center', backgroundColor: '#19171d99', flex: 1, justifyContent: 'center', padding: 20 },
   photoModal: { backgroundColor: '#fff', borderRadius: 18, padding: 20, width: '100%' },
+  confirmationCard: { backgroundColor: '#fff', borderRadius: 18, padding: 20, width: '100%' },
+  confirmationText: { color: '#756e7d', fontSize: 13, lineHeight: 19, marginBottom: 6 },
+  confirmShareButton: { alignItems: 'center', backgroundColor: '#7651e8', borderRadius: 11, marginTop: 12, paddingVertical: 12 },
+  confirmShareText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   modalTitle: { color: '#19171d', fontSize: 18, fontWeight: '700', marginBottom: 10 },
   photoOption: { borderBottomColor: '#e7e2eb', borderBottomWidth: 1, paddingVertical: 15 },
   photoOptionText: { color: '#19171d', fontSize: 14 },

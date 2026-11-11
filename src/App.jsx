@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native'
 import { supabase } from './lib/supabase.js'
 import { getProfile } from './services/profile.js'
 import HomeHeader from './components/HomeHeader.jsx'
 import ForgottenItemCard from './components/ForgottenItemCard.jsx'
-import FitOfTheDayCard from './components/FitOfTheDayCard.jsx'
+import TodayFitCard from './components/FitOfTheDayCard.jsx'
 import PostStreakCard from './components/PostStreakCard.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import ClosetScreen from './components/ClosetScreen.jsx'
@@ -21,6 +21,14 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home')
   const [showAddItem, setShowAddItem] = useState(false)
   const [showDocumentOutfit, setShowDocumentOutfit] = useState(false)
+  const [preselectedItemId, setPreselectedItemId] = useState(null)
+  const [initialWornOn, setInitialWornOn] = useState(null)
+
+  const openDocumentOutfit = (wornOn = null, itemId = null) => {
+    setInitialWornOn(wornOn)
+    setPreselectedItemId(itemId)
+    setShowDocumentOutfit(true)
+  }
 
   useEffect(() => {
     // Check current session on mount
@@ -68,7 +76,7 @@ function App() {
   }
 
   if (showDocumentOutfit) {
-    return <DocumentOutfitScreen onBack={() => setShowDocumentOutfit(false)} />
+    return <DocumentOutfitScreen initialItemId={preselectedItemId} initialWornOn={initialWornOn} onBack={() => setShowDocumentOutfit(false)} />
   }
 
   return (
@@ -87,16 +95,16 @@ function App() {
             <HomeHeader user={session.user} profile={profile}>
               <PostStreakCard userId={session.user.id} />
             </HomeHeader>
-            <Pressable accessibilityRole="button" onPress={() => setShowDocumentOutfit(true)} style={styles.documentCard}>
-              <View style={styles.documentCardCopy}>
-                <Text style={styles.documentCardLabel}>Track your fit</Text>
-                <Text style={styles.documentCardTitle}>Document today's outfit</Text>
-                <Text style={styles.documentCardSubtitle}>Save a photo and mark the closet pieces you wore.</Text>
-              </View>
-              <Text style={styles.documentCardArrow}>›</Text>
-            </Pressable>
-            <FitOfTheDayCard />
-            <ForgottenItemCard onWear={() => setActiveTab('Community')} onList={() => setActiveTab('Marketplace')} />
+            <TodayFitCard
+              onRecordToday={() => openDocumentOutfit()}
+              onRecordPast={() => openDocumentOutfit('')}
+            />
+            <ForgottenItemCard
+              onWear={(item) => {
+                openDocumentOutfit(null, item.id)
+              }}
+              onList={() => setActiveTab('Marketplace')}
+            />
           </ScrollView>
         )}
         <BottomNav activeTab={activeTab} onChange={setActiveTab} />
@@ -118,45 +126,6 @@ const styles = StyleSheet.create({
   },
   homeContent: {
     paddingBottom: 24,
-  },
-  documentCard: {
-    alignItems: 'center',
-    backgroundColor: '#eee9ff',
-    borderColor: '#d9ccff',
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 18,
-    marginTop: 22,
-    padding: 16,
-  },
-  documentCardCopy: {
-    flex: 1,
-  },
-  documentCardLabel: {
-    color: '#7651e8',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  documentCardTitle: {
-    color: '#19171d',
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  documentCardSubtitle: {
-    color: '#756e7d',
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 4,
-  },
-  documentCardArrow: {
-    color: '#7651e8',
-    fontSize: 30,
-    marginLeft: 12,
   },
 })
 

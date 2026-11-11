@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { removeClothingImage, uploadClothingImage } from '../services/clothingImages.js';
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -88,24 +89,14 @@ function AddItemScreen({ onBack }) {
     }
 
     setLoading(true)
+    let uploadedPath = null
+    let clothingItemId = null
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw userError ?? new Error('Not logged in')
 
-      // The local URI is converted to the image bytes that Storage receives.
-      const response = await fetch(selectedImage.uri)
-      const blob = await response.blob()
-      const filePath = `${user.id}/${Date.now()}.jpg`
-
-      const { data: uploadedFile, error: uploadError } = await supabase.storage
-        .from('Clothing_item_pics')
-        .upload(filePath, blob, { contentType: 'image/jpeg', upsert: false })
-
-      if (uploadError) throw uploadError
-
-      const validCategories = CATEGORIES.map(
-  category => category.value
-);
+      const uploadedFile = await uploadClothingImage(user.id, selectedImage)
+      uploadedPath = uploadedFile.path
 
       const { data: clothingItem, error: itemError } =
   await supabase
@@ -133,6 +124,7 @@ function AddItemScreen({ onBack }) {
         });
         throw itemError;
       }
+      clothingItemId = clothingItem.id
 
       const { error: insertError } = await supabase
         .from('clothing_item_images')
@@ -146,6 +138,18 @@ function AddItemScreen({ onBack }) {
       Alert.alert('Saved', 'Your clothing photo was uploaded.')
       onBack()
     } catch (error) {
+      try {
+        if (clothingItemId) {
+          const { error: cleanupItemError } = await supabase
+            .from('clothing_items')
+            .delete()
+            .eq('id', clothingItemId)
+          if (cleanupItemError) console.warn('Clothing item cleanup failed:', cleanupItemError)
+        }
+        if (uploadedPath) await removeClothingImage(uploadedPath)
+      } catch (cleanupError) {
+        console.warn('Clothing photo cleanup failed:', cleanupError)
+      }
       Alert.alert('Could not save item', error.message)
     } finally {
       setLoading(false)
