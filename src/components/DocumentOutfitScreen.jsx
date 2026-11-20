@@ -18,7 +18,7 @@ function formatCategory(value) {
     : 'Uncategorized'
 }
 
-function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBack }) {
+function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBack, onSaved }) {
   const [image, setImage] = useState(null)
   const [closetItems, setClosetItems] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
@@ -128,11 +128,13 @@ function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBa
           })
         } catch (postError) {
           Alert.alert('Outfit saved, post not shared', postError.message)
+          onSaved?.({ shared: false })
           onBack()
           return
         }
       }
       Alert.alert('Outfit saved', 'Your outfit and worn items were documented.')
+      onSaved?.({ shared: shareToCommunity })
       onBack()
     } catch (error) {
       setSaveError(error.message)
