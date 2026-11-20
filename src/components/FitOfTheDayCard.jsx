@@ -10,7 +10,7 @@ function todayKey() {
   return `${year}-${month}-${day}`
 }
 
-function TodayFitCard({ onRecordToday, onRecordPast }) {
+function TodayFitCard({ onRecordToday, onRecordPast, shared = false, embedded = false }) {
   const [outfit, setOutfit] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -32,8 +32,8 @@ function TodayFitCard({ onRecordToday, onRecordPast }) {
   }, [])
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.label}>Today's fit</Text>
+    <View style={[styles.card, embedded && styles.embeddedCard]}>
+      <View style={styles.labelRow}><Text style={styles.label}>Today's fit</Text>{shared && <Text style={styles.shared}>Shared</Text>}</View>
       {loading ? (
         <ActivityIndicator color="#7651e8" style={styles.loader} />
       ) : error ? (
@@ -71,7 +71,10 @@ function TodayFitCard({ onRecordToday, onRecordPast }) {
 
 const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 16, borderWidth: 1, marginHorizontal: 18, marginTop: 22, padding: 16 },
+  embeddedCard: { marginHorizontal: 0 },
   label: { color: '#7651e8', fontSize: 12, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  labelRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  shared: { backgroundColor: '#eee9ff', borderRadius: 99, color: '#7651e8', fontSize: 11, fontWeight: '700', overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 4 },
   loader: { marginVertical: 24 },
   empty: { color: '#19171d', fontSize: 17, fontWeight: '600', marginTop: 14 },
   prompt: { color: '#756e7d', fontSize: 13, lineHeight: 18, marginTop: 5 },

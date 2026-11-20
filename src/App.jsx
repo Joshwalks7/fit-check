@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Alert, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native'
+import { Alert, SafeAreaView, StyleSheet, View } from 'react-native'
 import { supabase } from './lib/supabase.js'
 import { getProfile } from './services/profile.js'
-import HomeHeader from './components/HomeHeader.jsx'
-import ForgottenItemCard from './components/ForgottenItemCard.jsx'
-import TodayFitCard from './components/FitOfTheDayCard.jsx'
-import PostStreakCard from './components/PostStreakCard.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import ClosetScreen from './components/ClosetScreen.jsx'
 import CommunityScreen from './components/CommunityScreen.jsx'
+import HomeScreen from './components/HomeScreen.jsx'
 import AddItemScreen from './components/AddItemScreen.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import MarketplaceScreen from './components/MarketplaceScreen.jsx'
@@ -23,6 +20,8 @@ function App() {
   const [showDocumentOutfit, setShowDocumentOutfit] = useState(false)
   const [preselectedItemId, setPreselectedItemId] = useState(null)
   const [initialWornOn, setInitialWornOn] = useState(null)
+  const [fitRefreshKey, setFitRefreshKey] = useState(0)
+  const [sharedToday, setSharedToday] = useState(false)
 
   const openDocumentOutfit = (wornOn = null, itemId = null) => {
     setInitialWornOn(wornOn)
@@ -76,7 +75,7 @@ function App() {
   }
 
   if (showDocumentOutfit) {
-    return <DocumentOutfitScreen initialItemId={preselectedItemId} initialWornOn={initialWornOn} onBack={() => setShowDocumentOutfit(false)} />
+    return <DocumentOutfitScreen initialItemId={preselectedItemId} initialWornOn={initialWornOn} onBack={() => setShowDocumentOutfit(false)} onSaved={({ shared }) => { setSharedToday(shared); setFitRefreshKey((key) => key + 1) }} />
   }
 
   return (
@@ -91,21 +90,7 @@ function App() {
         ) : activeTab === 'Profile' ? (
           <ProfileScreen user={session.user} profile={profile} setProfile={setProfile} />
         ) : (
-          <ScrollView style={styles.main} contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}>
-            <HomeHeader user={session.user} profile={profile}>
-              <PostStreakCard userId={session.user.id} />
-            </HomeHeader>
-            <TodayFitCard
-              onRecordToday={() => openDocumentOutfit()}
-              onRecordPast={() => openDocumentOutfit('')}
-            />
-            <ForgottenItemCard
-              onWear={(item) => {
-                openDocumentOutfit(null, item.id)
-              }}
-              onList={() => setActiveTab('Marketplace')}
-            />
-          </ScrollView>
+          <HomeScreen fitRefreshKey={fitRefreshKey} onListForgotten={() => setActiveTab('Marketplace')} onRecordPast={() => openDocumentOutfit('')} onRecordToday={() => openDocumentOutfit()} onWearForgotten={(item) => openDocumentOutfit(null, item.id)} profile={profile} sharedToday={sharedToday} user={session.user} />
         )}
         <BottomNav activeTab={activeTab} onChange={setActiveTab} />
       </View>
@@ -120,12 +105,6 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-  },
-  main: {
-    flex: 1,
-  },
-  homeContent: {
-    paddingBottom: 24,
   },
 })
 

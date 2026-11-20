@@ -32,7 +32,7 @@ function streakMessage({ streak, postedToday }) {
   return 'Post to start one'
 }
 
-function PostStreakCard({ userId }) {
+function PostStreakCard({ userId, compact = false }) {
   const [stats, setStats] = useState(null)
   const [error, setError] = useState(null)
 
@@ -51,19 +51,19 @@ function PostStreakCard({ userId }) {
   }, [userId])
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.label}>Post streak</Text>
+    <View style={[styles.card, compact && styles.compactCard]}>
+      <Text style={[styles.label, compact && styles.compactLabel]}>Post streak</Text>
       {error ? (
         <Text style={styles.message}>Couldn’t load</Text>
       ) : !stats ? (
         <ActivityIndicator color="#7651e8" style={styles.loader} />
       ) : (
         <>
-          <View style={styles.row}>
-            <Text style={[styles.count, stats.streak === 0 && styles.flameOut]}>🔥</Text>
-            <Text style={styles.count}>{stats.streak} {stats.streak === 1 ? 'day' : 'days'}</Text>
+          <View style={[styles.row, compact && styles.compactRow]}>
+            <Text style={[styles.count, compact && styles.compactCount, stats.streak === 0 && styles.flameOut]}>🔥</Text>
+            <Text style={[styles.count, compact && styles.compactCount]}>{stats.streak} {stats.streak === 1 ? 'day' : 'days'}</Text>
           </View>
-          <Text style={styles.message}>{streakMessage(stats)}</Text>
+          <Text style={[styles.message, compact && styles.compactMessage]}>{streakMessage(stats)}</Text>
         </>
       )}
     </View>
@@ -72,12 +72,17 @@ function PostStreakCard({ userId }) {
 
 const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 16, borderWidth: 1, padding: 14, width: '45%' },
+  compactCard: { flex: 1, width: undefined },
   label: { color: '#7651e8', fontSize: 12, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  compactLabel: { fontSize: 10 },
   loader: { marginVertical: 12 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: 8 },
+  compactRow: { marginTop: 4 },
   count: { color: '#19171d', fontSize: 22, fontWeight: '700' },
+  compactCount: { fontSize: 18 },
   flameOut: { opacity: 0.3 },
   message: { color: '#756e7d', fontSize: 12, marginTop: 2 },
+  compactMessage: { fontSize: 10 },
 })
 
 export default PostStreakCard
