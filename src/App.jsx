@@ -9,6 +9,8 @@ import HomeScreen from './components/HomeScreen.jsx'
 import AddItemScreen from './components/AddItemScreen.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import MarketplaceScreen from './components/MarketplaceScreen.jsx'
+import CreateListingScreen from './components/CreateListingScreen.jsx'
+import MyListingsScreen from './components/MyListingsScreen.jsx'
 import ProfileScreen from './components/ProfileScreen.jsx'
 import DocumentOutfitScreen from './components/DocumentOutfitScreen.jsx'
 
@@ -17,6 +19,8 @@ function App() {
   const [profile, setProfile] = useState(null)
   const [activeTab, setActiveTab] = useState('Home')
   const [showAddItem, setShowAddItem] = useState(false)
+  const [showCreateListing, setShowCreateListing] = useState(false)
+  const [showMyListings, setShowMyListings] = useState(false)
   const [showDocumentOutfit, setShowDocumentOutfit] = useState(false)
   const [preselectedItemId, setPreselectedItemId] = useState(null)
   const [initialWornOn, setInitialWornOn] = useState(null)
@@ -74,6 +78,14 @@ function App() {
     return <AddItemScreen onBack={() => setShowAddItem(false)} />
   }
 
+  if (showCreateListing) {
+    return <CreateListingScreen onBack={() => setShowCreateListing(false)} />
+  }
+
+  if (showMyListings) {
+    return <MyListingsScreen onBack={() => setShowMyListings(false)} />
+  }
+
   if (showDocumentOutfit) {
     return <DocumentOutfitScreen initialItemId={preselectedItemId} initialWornOn={initialWornOn} onBack={() => setShowDocumentOutfit(false)} onSaved={({ shared }) => { setSharedToday(shared); setFitRefreshKey((key) => key + 1) }} />
   }
@@ -84,7 +96,7 @@ function App() {
         {activeTab === 'Closet' ? (
           <ClosetScreen onAddItem={() => setShowAddItem(true)} />
         ) : activeTab === 'Marketplace' ? (
-          <MarketplaceScreen />
+          <MarketplaceScreen onCreateListing={() => setShowCreateListing(true)} onMyListings={() => setShowMyListings(true)} />
         ) : activeTab === 'Community' ? (
           <CommunityScreen />
         ) : activeTab === 'Profile' ? (
