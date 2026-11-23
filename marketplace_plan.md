@@ -336,7 +336,7 @@ The current app uses state-based screen switching in `src/App.jsx`, so the first
 
 Implementation status: the first feed/detail slice is implemented in `src/components/MarketplaceScreen.jsx`, `src/components/ListingDetailsScreen.jsx`, `src/services/marketplace.js`, and `src/services/marketplaceImages.js`. Prototype-only card previews were removed after visual review.
 
-Follow-up UI note: the current `My listings` control is placed in the Marketplace header. The user does not like that location; revisit its placement during the next Marketplace UI pass.
+UI update: the create-listing action is now a floating plus button in the lower-right of the Marketplace content area, positioned above the shared bottom navigation. `My listings` remains in the header. This placement should still be checked on small screens to ensure it does not obscure cards or touch the bottom navigation.
 
 The create-listing slice is also implemented in `src/components/CreateListingScreen.jsx`, `src/services/marketplace.js`, `src/services/marketplaceImages.js`, and `src/App.jsx`. It supports standalone listings, closet autofill, drafts, publishing, multiple images, seller-scoped writes, and partial-failure cleanup. Runtime device, Storage, and RLS verification remains pending.
 
@@ -378,6 +378,10 @@ Implementation status: the seller-owned listings view now opens each listing as 
 6. `SavedListingsScreen`
    - user's saved listings
    - unavailable-listing state for sold or withdrawn listings
+
+Implementation status: Saved is now a top tab inside the My marketplace hub. Public listing cards and detail views support save/unsave, and unavailable saved listings remain represented as placeholders when access to the original listing is no longer available.
+
+Product note: users generally should not be able to save their own listings. The current behavior is useful for development and testing, but production UI should hide or disable the save control for listings owned by the current user.
 
 7. `ReportListingModal`
    - constrained reason selection
@@ -468,6 +472,8 @@ Stores user-submitted moderation reports.
 
 Implementation status: created with constrained report reasons and statuses, reporter-scoped RLS, duplicate prevention per reporter/listing, and `on delete set null` for listing references. Reports retain a listing title snapshot so deleting a listing does not erase the report context.
 
+Submission-flow status: implemented from active listing details through an overflow menu and report modal. Users choose a constrained reason, may add details, receive a success state, and receive a duplicate-report error when applicable. Owners cannot report their own listings, and moderator tooling remains deferred.
+
 ### New chat tables
 
 #### `conversations`
@@ -487,6 +493,8 @@ Stores message content and message lifecycle fields.
 Attaches a marketplace listing as context without making chat marketplace-specific.
 
 Implementation status: chat tables, participant/message/listing-context RLS, conversation timestamp triggers, and message ordering metadata have been created. Runtime authorization and messaging tests remain outstanding.
+
+Chat foundation status: added the secure `create_listing_conversation` database function and `src/services/chat.js` for conversation creation, inbox loading, message loading, sending, and read-state updates. The function has been applied by the user. The first UI slice is now implemented: active listing details can start an inquiry with a default “Is this available?” message, My Marketplace contains a third Messages tab alongside My listings and Saved, and inbox rows open a listing-context chat screen. Realtime delivery and two-account authorization tests remain outstanding; the current chat view supports manual pull-to-refresh.
 
 #### Chat verification checklist
 

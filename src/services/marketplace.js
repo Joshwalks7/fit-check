@@ -183,7 +183,7 @@ export async function createMarketplaceListing({ listing, images = [], publish =
 }
 
 export async function fetchActiveListings() {
-  await requireUser()
+  const user = await requireUser()
 
   const { data, error } = await supabase
     .from('marketplace_listings')
@@ -192,7 +192,9 @@ export async function fetchActiveListings() {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return hydrateListings(data || [])
+  const listings = await hydrateListings(data || [])
+  const savedIds = new Set(await fetchSavedListingIds())
+  return listings.map((listing) => ({ ...listing, isOwner: listing.seller_id === user.id, isSaved: savedIds.has(listing.listing_id) }))
 }
 
 export async function fetchMyListings() {
@@ -205,7 +207,107 @@ export async function fetchMyListings() {
     .order('updated_at', { ascending: false })
 
   if (error) throw error
-  return hydrateListings(data || [])
+  return (await hydrateListings(data || [])).map((listing) => ({ ...listing, isOwner: listing.seller_id === user.id }))
+}
+
+export async function fetchSavedListingIds() {
+  const user = await requireUser()
+  const { data, error } = await supabase
+    .from('saved_listings')
+    .select('listing_id')
+    .eq('user_id', user.id)
+
+  if (error) throw error
+  return (data || []).map((row) => row.listing_id)
+}
+
+export async function fetchSavedListings() {
+  const user = await requireUser()
+  const { data: savedRows, error: savedError } = await supabase
+    .from('saved_listings')
+    .select('listing_id, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  if (savedError) throw savedError
+  if (!savedRows?.length) return []
+
+  const savedIds = savedRows.map((row) => row.listing_id)
+  const { data: listings, error: listingsError } = await supabase
+    .from('marketplace_listings')
+    .select(LISTING_SELECT)
+    .in('listing_id', savedIds)
+
+  if (listingsError) throw listingsError
+
+  const hydrated = await hydrateListings(listings || [])
+  const byId = new Map(hydrated.map((listing) => [listing.listing_id, listing]))
+
+  return savedRows.map((savedRow) => {
+    const listing = byId.get(savedRow.listing_id)
+    return listing
+      ? { ...listing, isSaved: true, saved_at: savedRow.created_at }
+      : {
+        listing_id: savedRow.listing_id,
+        title: 'Listing unavailable',
+        description: 'This listing is no longer available to view.',
+        status: 'unavailable',
+        isSaved: true,
+        saved_at: savedRow.created_at,
+        images: [],
+      }
+  })
+}
+
+export async function saveListing(listingId) {
+  const user = await requireUser()
+  const { error } = await supabase
+    .from('saved_listings')
+    .insert({ user_id: user.id, listing_id: listingId })
+
+  if (error) throw error
+}
+
+export async function unsaveListing(listingId) {
+  const user = await requireUser()
+  const { error } = await supabase
+    .from('saved_listings')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('listing_id', listingId)
+
+  if (error) throw error
+}
+
+export async function submitListingReport({ listingId, reason, details = '' }) {
+  const user = await requireUser()
+  if (!reason) throw new Error('Choose a reason for reporting this listing.')
+
+  const { data: listing, error: listingError } = await supabase
+    .from('marketplace_listings')
+    .select('title, seller_id, status')
+    .eq('listing_id', listingId)
+    .single()
+
+  if (listingError) throw listingError
+  if (listing.seller_id === user.id) throw new Error('You cannot report your own listing.')
+  if (listing.status !== 'active') throw new Error('Only active listings can be reported.')
+
+  const { error } = await supabase
+    .from('listing_reports')
+    .insert({
+      listing_id: listingId,
+      reporter_id: user.id,
+      reported_seller_id: listing.seller_id,
+      listing_title_snapshot: listing.title,
+      reason,
+      details: details.trim() || null,
+    })
+
+  if (error) {
+    if (error.code === '23505') throw new Error('You already reported this listing.')
+    throw error
+  }
 }
 
 export async function updateMarketplaceListing(listingId, changes) {
@@ -283,7 +385,7 @@ export async function deleteMarketplaceListing(listingId) {
 }
 
 export async function fetchListingById(listingId) {
-  await requireUser()
+  const user = await requireUser()
 
   const { data, error } = await supabase
     .from('marketplace_listings')
@@ -293,5 +395,5 @@ export async function fetchListingById(listingId) {
 
   if (error) throw error
   const [listing] = await hydrateListings([data])
-  return listing
+  return { ...listing, isOwner: listing.seller_id === user.id }
 }
