@@ -42,12 +42,16 @@ export function useCommunityFeed({ refreshKey = 0 } = {}) {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(null)
 
-  const loadPosts = useCallback(async () => {
+  const fetchCommunityPosts = useCallback(async () => {
     const data = await fetchPosts()
     const previews = await fetchCommentPreviews(data.map((post) => post.id)).catch(() => ({}))
-    setPosts(data.map((post) => ({ ...post, comments: previews[post.id] || [] })))
-    setError(null)
+    return data.map((post) => ({ ...post, comments: previews[post.id] || [] }))
   }, [])
+
+  const loadPosts = useCallback(async () => {
+    setPosts(await fetchCommunityPosts())
+    setError(null)
+  }, [fetchCommunityPosts])
 
   const loadFollowing = useCallback(async () => {
     try {
@@ -58,34 +62,48 @@ export function useCommunityFeed({ refreshKey = 0 } = {}) {
     }
   }, [])
 
-  const initialize = useCallback(async () => {
-    try {
-      await loadPosts()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-    getCurrentUser().then((user) => setCurrentUserId(user.id)).catch(() => {})
-  }, [loadPosts])
-
   useEffect(() => {
-    // oxlint-disable-next-line react(set-state-in-effect)
+    let cancelled = false
+
+    const initialize = async () => {
+      try {
+        const nextPosts = await fetchCommunityPosts()
+        if (!cancelled) setPosts(nextPosts)
+      } catch (err) {
+        if (!cancelled) setError(err.message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+
+      try {
+        const user = await getCurrentUser()
+        if (!cancelled) setCurrentUserId(user.id)
+      } catch {
+        // A missing user is handled by the authenticated app shell.
+      }
+    }
+
     initialize()
-  }, [initialize])
-
-  const refreshAfterExternalChange = useCallback(async () => {
-    try {
-      await loadPosts()
-    } catch (err) {
-      setError(err.message)
-    }
-  }, [loadPosts])
+    return () => { cancelled = true }
+  }, [fetchCommunityPosts])
 
   useEffect(() => {
-    // oxlint-disable-next-line react(set-state-in-effect)
-    if (refreshKey) refreshAfterExternalChange()
-  }, [refreshAfterExternalChange, refreshKey])
+    if (!refreshKey) return undefined
+    let cancelled = false
+
+    fetchCommunityPosts()
+      .then((nextPosts) => {
+        if (!cancelled) {
+          setPosts(nextPosts)
+          setError(null)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message)
+      })
+
+    return () => { cancelled = true }
+  }, [fetchCommunityPosts, refreshKey])
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
