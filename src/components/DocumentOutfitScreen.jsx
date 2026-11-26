@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { createOutfit, fetchClosetItemsForOutfit } from '../services/outfits.js'
+import { analyzeOutfitImage, removeAnalysisImage, uploadAnalysisImage } from '../services/outfitAnalysis.js'
 import { createPost } from '../services/posts.js'
 
 function todayKey() {
@@ -18,7 +19,7 @@ function formatCategory(value) {
     : 'Uncategorized'
 }
 
-function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBack, onSaved }) {
+function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBack, onSaved, userId }) {
   const [image, setImage] = useState(null)
   const [closetItems, setClosetItems] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
@@ -31,6 +32,9 @@ function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBa
   const [showShareConfirmation, setShowShareConfirmation] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [analysisStatus, setAnalysisStatus] = useState('idle')
+  const [analysisError, setAnalysisError] = useState(null)
+  const [analysisResult, setAnalysisResult] = useState(null)
 
   const loadItems = async () => {
     setLoadingItems(true)
@@ -86,7 +90,36 @@ function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBa
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: ['images'] })
 
     setShowPhotoOptions(false)
-    if (!result.canceled) setImage(result.assets[0])
+    if (!result.canceled) {
+      setImage(result.assets[0])
+      setAnalysisStatus('idle')
+      setAnalysisError(null)
+      setAnalysisResult(null)
+    }
+  }
+
+  const analyzeImage = async () => {
+    if (!image) {
+      setAnalysisError('Add an outfit photo before analyzing it.')
+      return
+    }
+
+    setAnalysisStatus('uploading')
+    setAnalysisError(null)
+    setAnalysisResult(null)
+    let storagePath = null
+    try {
+      storagePath = await uploadAnalysisImage(userId, image)
+      setAnalysisStatus('analyzing')
+      const result = await analyzeOutfitImage(storagePath, image.mimeType)
+      setAnalysisResult(result)
+      setSelectedIds((result.matches || []).map((match) => match.clothing_item_id))
+      setAnalysisStatus('complete')
+    } catch (error) {
+      if (storagePath) await removeAnalysisImage(storagePath).catch(() => {})
+      setAnalysisStatus('failed')
+      setAnalysisError(error.message || 'Outfit analysis failed. You can select items manually.')
+    }
   }
 
   const toggleItem = (itemId) => {
@@ -148,6 +181,7 @@ function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBa
   }
 
   const isToday = wornOn === todayKey()
+  const analysisBusy = analysisStatus === 'uploading' || analysisStatus === 'analyzing'
 
   return (
     <SafeAreaView style={styles.container}>
@@ -161,7 +195,7 @@ function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBa
         </View>
         <Text style={styles.subtitle}>Save what you wore and keep your closet history accurate.</Text>
 
-        <Pressable accessibilityRole="button" disabled={saving} onPress={() => setShowPhotoOptions(true)} style={styles.photoPicker}>
+        <Pressable accessibilityRole="button" disabled={saving || analysisBusy} onPress={() => setShowPhotoOptions(true)} style={styles.photoPicker}>
           {image ? (
             <View style={styles.previewFrame}>
               <Image source={{ uri: image.uri }} style={styles.preview} resizeMode="contain" />
@@ -174,6 +208,18 @@ function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBa
             </>
           )}
         </Pressable>
+
+        {image ? (
+          <View>
+            <Pressable accessibilityRole="button" disabled={analysisBusy || saving} onPress={analyzeImage} style={styles.analyzeButton}>
+              {analysisBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.analyzeButtonText}>{analysisStatus === 'complete' ? 'Analyze again' : 'Analyze outfit with AI'}</Text>}
+            </Pressable>
+            {analysisStatus === 'uploading' && <Text style={styles.analysisHint}>Uploading a temporary copy…</Text>}
+            {analysisStatus === 'analyzing' && <Text style={styles.analysisHint}>Looking for matches in your closet…</Text>}
+            {analysisResult && <View style={styles.analysisResult}><Text style={styles.analysisTitle}>AI suggestions ready</Text><Text style={styles.analysisText}>{analysisResult.matches?.length || 0} closet item{analysisResult.matches?.length === 1 ? '' : 's'} preselected. Review the choices below before saving.</Text>{analysisResult.unmatched_garments?.length ? <Text style={styles.analysisText}>{analysisResult.unmatched_garments.length} garment{analysisResult.unmatched_garments.length === 1 ? '' : 's'} could not be matched.</Text> : null}</View>}
+            {!!analysisError && <Text style={styles.errorText}>{analysisError}</Text>}
+          </View>
+        ) : null}
 
         <View style={styles.field}>
           <Text style={styles.label}>Title (optional)</Text>
@@ -237,11 +283,11 @@ function DocumentOutfitScreen({ initialItemId = null, initialWornOn = null, onBa
 
         {!!saveError && <Text style={styles.errorText}>{saveError}</Text>}
         {isToday ? (
-          <Pressable accessibilityRole="button" disabled={saving || loadingItems} onPress={shareToday} style={[styles.shareButton, (saving || loadingItems) && styles.disabledButton]}>
+            <Pressable accessibilityRole="button" disabled={saving || loadingItems || analysisBusy} onPress={shareToday} style={[styles.shareButton, (saving || loadingItems || analysisBusy) && styles.disabledButton]}>
             <Text style={styles.shareButtonText}>Save & share to community</Text>
           </Pressable>
         ) : null}
-        <Pressable accessibilityRole="button" disabled={saving || loadingItems} onPress={save} style={[styles.saveButton, (saving || loadingItems) && styles.disabledButton]}>
+        <Pressable accessibilityRole="button" disabled={saving || loadingItems || analysisBusy} onPress={save} style={[styles.saveButton, (saving || loadingItems || analysisBusy) && styles.disabledButton]}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save outfit</Text>}
         </Pressable>
       </ScrollView>
@@ -289,6 +335,12 @@ const styles = StyleSheet.create({
   preview: { height: '100%', width: '100%' },
   photoTitle: { color: '#7651e8', fontSize: 14, fontWeight: '700', marginTop: 4 },
   photoHint: { color: '#756e7d', fontSize: 11, marginTop: 4 },
+  analyzeButton: { alignItems: 'center', backgroundColor: '#7651e8', borderRadius: 11, marginTop: 12, paddingVertical: 12 },
+  analyzeButtonText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  analysisHint: { color: '#756e7d', fontSize: 11, marginTop: 6, textAlign: 'center' },
+  analysisResult: { backgroundColor: '#f0ebff', borderRadius: 11, marginTop: 10, padding: 12 },
+  analysisTitle: { color: '#7651e8', fontSize: 12, fontWeight: '700' },
+  analysisText: { color: '#756e7d', fontSize: 11, lineHeight: 16, marginTop: 3 },
   field: { marginTop: 15 },
   label: { color: '#19171d', fontSize: 12, fontWeight: '700', marginBottom: 6 },
   input: { backgroundColor: '#fff', borderColor: '#e7e2eb', borderRadius: 10, borderWidth: 1, color: '#19171d', fontSize: 14, paddingHorizontal: 12, paddingVertical: 11 },
