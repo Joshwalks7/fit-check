@@ -87,7 +87,7 @@ function App() {
   }
 
   if (showDocumentOutfit) {
-    return <DocumentOutfitScreen initialItemId={preselectedItemId} initialWornOn={initialWornOn} onBack={() => setShowDocumentOutfit(false)} onSaved={({ shared }) => { setSharedToday(shared); setFitRefreshKey((key) => key + 1) }} />
+    return <DocumentOutfitScreen initialItemId={preselectedItemId} initialWornOn={initialWornOn} onBack={() => setShowDocumentOutfit(false)} onSaved={({ shared }) => { setSharedToday(shared); setFitRefreshKey((key) => key + 1) }} userId={session.user.id} />
   }
 
   return (

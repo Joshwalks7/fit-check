@@ -26,6 +26,8 @@
     "react-native-web": "^0.21.4"
   },
   "devDependencies": {
-    "oxlint": "^1.81.0"
+    "@types/react": "~19.3.0",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.3"
   }
 }
